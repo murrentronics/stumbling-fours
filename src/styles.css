@@ -1,31 +1,22 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "@fontsource/cinzel/600.css";
+@import "@fontsource/cinzel/700.css";
+@import "@fontsource/cinzel/900.css";
+@import "@fontsource/bebas-neue/400.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
 
 @custom-variant dark (&:is(.dark *));
-
-/*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
- */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -45,100 +36,148 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-ring-offset-background: var(--background);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-felt: var(--felt);
+  --color-felt-deep: var(--felt-deep);
+  --color-crimson: var(--crimson);
+  --color-royal: var(--royal);
+  --color-team-a: var(--team-a);
+  --color-team-b: var(--team-b);
+  --font-display: "Cinzel", serif;
+  --font-marquee: "Bebas Neue", sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --radius: 0.75rem;
+
+  /* casino palette */
+  --felt: oklch(0.34 0.09 155);
+  --felt-deep: oklch(0.22 0.08 155);
+  --gold: oklch(0.83 0.16 88);
+  --gold-soft: oklch(0.72 0.13 80);
+  --crimson: oklch(0.52 0.22 25);
+  --royal: oklch(0.38 0.18 295);
+  --team-a: oklch(0.62 0.22 25);   /* red */
+  --team-b: oklch(0.55 0.18 250);  /* blue */
+
+  --background: oklch(0.18 0.05 150);
+  --foreground: oklch(0.97 0.02 90);
+  --card: oklch(0.24 0.07 150);
+  --card-foreground: oklch(0.97 0.02 90);
+  --popover: oklch(0.22 0.06 150);
+  --popover-foreground: oklch(0.97 0.02 90);
+  --primary: oklch(0.83 0.16 88);
+  --primary-foreground: oklch(0.18 0.05 150);
+  --secondary: oklch(0.30 0.08 150);
+  --secondary-foreground: oklch(0.97 0.02 90);
+  --muted: oklch(0.28 0.05 150);
+  --muted-foreground: oklch(0.78 0.04 90);
+  --accent: oklch(0.52 0.22 25);
+  --accent-foreground: oklch(0.97 0.02 90);
+  --destructive: oklch(0.55 0.24 25);
+  --destructive-foreground: oklch(0.97 0.02 90);
+  --border: oklch(0.45 0.10 88 / 40%);
+  --input: oklch(0.30 0.06 150);
+  --ring: oklch(0.83 0.16 88);
+
+  /* gradients & shadows */
+  --gradient-felt: radial-gradient(ellipse at center, oklch(0.40 0.10 155) 0%, oklch(0.22 0.08 155) 70%, oklch(0.16 0.07 155) 100%);
+  --gradient-gold: linear-gradient(135deg, oklch(0.92 0.14 92) 0%, oklch(0.78 0.17 78) 50%, oklch(0.62 0.16 70) 100%);
+  --gradient-crimson: linear-gradient(135deg, oklch(0.62 0.24 25) 0%, oklch(0.42 0.22 22) 100%);
+  --shadow-gold: 0 0 24px oklch(0.83 0.16 88 / 50%), 0 4px 16px oklch(0 0 0 / 40%);
+  --shadow-table: 0 30px 60px -20px oklch(0 0 0 / 70%), inset 0 0 80px oklch(0 0 0 / 35%);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: oklch(0.14 0.04 150);
+  --foreground: oklch(0.97 0.02 90);
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
-
+  * { border-color: var(--color-border); }
+  html, body { background: oklch(0.10 0.03 150); }
   body {
-    background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(ellipse at top, oklch(0.22 0.07 295 / 35%), transparent 60%),
+      radial-gradient(ellipse at bottom, oklch(0.52 0.22 25 / 20%), transparent 55%),
+      oklch(0.10 0.03 150);
+    background-attachment: fixed;
+    min-height: 100vh;
   }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0.02em; }
+}
+
+/* Wavy thick casino border frame */
+@utility casino-frame {
+  position: relative;
+  padding: 28px;
+  background: var(--gradient-gold);
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 4px oklch(0.30 0.10 25),
+    0 0 0 8px oklch(0.83 0.16 88),
+    0 0 0 12px oklch(0.30 0.10 25),
+    var(--shadow-gold);
+  -webkit-mask-image: radial-gradient(circle at 12px 12px, transparent 6px, black 7px) top left,
+                       radial-gradient(circle at calc(100% - 12px) 12px, transparent 6px, black 7px) top right,
+                       radial-gradient(circle at 12px calc(100% - 12px), transparent 6px, black 7px) bottom left,
+                       radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), transparent 6px, black 7px) bottom right;
+}
+
+/* Decorative rope/scallop border using SVG mask alternative — use bordered cards */
+@utility ornate-border {
+  position: relative;
+  border: 3px solid transparent;
+  background:
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    var(--gradient-gold) border-box;
+  border-radius: var(--radius);
+}
+
+@utility gold-text {
+  background: var(--gradient-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 30px oklch(0.83 0.16 88 / 30%);
+}
+
+@utility felt-surface {
+  background: var(--gradient-felt);
+  box-shadow: var(--shadow-table);
+}
+
+@utility chip-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  color: oklch(0.18 0.05 150);
+  background: var(--gradient-gold);
+  box-shadow: 0 4px 0 oklch(0.45 0.13 70), 0 8px 16px oklch(0 0 0 / 40%);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+@utility chip-button-hover {
+  &:hover { transform: translateY(-2px); box-shadow: 0 6px 0 oklch(0.45 0.13 70), 0 12px 20px oklch(0 0 0 / 50%); }
+}
+
+@utility marquee-lights {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, oklch(1 0 0 / 90%) 0 2px, transparent 3px);
+  background-size: 18px 18px;
+  background-repeat: repeat-x;
+  background-position: top center, bottom center;
+  opacity: 0.35;
 }
