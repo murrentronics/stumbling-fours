@@ -90,7 +90,7 @@ export function LiveTable({ match }: { match: Match }) {
               }}
             />
           )}
-          {(role === "admin" || myTeam?.id === match.teamB.id) && (
+          {myTeam?.id === match.teamB.id && (
             <ScoreEntry
               match={match}
               team={match.teamB}
