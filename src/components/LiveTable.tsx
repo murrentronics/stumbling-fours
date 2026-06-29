@@ -240,10 +240,10 @@ function ScoreEntry({
         <PointBtn label="High" value="+1" active={high} onClick={() => setHigh(!high)} />
         <PointBtn label="Low" value="+1" active={low} onClick={() => setLow(!low)} />
         <PointBtn
-          label={jack === 3 ? "Hang Jack" : "Jack"}
-          value={jack === 3 ? "+3" : "+1"}
-          active={jack > 0}
-          onClick={() => setJack(jack === 0 ? 1 : jack === 1 ? 3 : 0)}
+          label="Hang Jack"
+          value="+3"
+          active={jack}
+          onClick={() => setJack(!jack)}
           accent
         />
         <PointBtn label="Game" value="+2" active={game} onClick={() => setGame(!game)} />
