@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp, type Team, type Match } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { Trophy, Plus, Trash2, Lock, Shuffle, Medal, Shield, UserPlus, Play } from "lucide-react";
+
+type Member = { id: string; email: string; display_name: string | null };
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({
