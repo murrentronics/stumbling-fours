@@ -65,7 +65,8 @@ function Tables() {
 }
 
 function LiveTab() {
-  const matches = useApp((s) => s.matches.filter((m) => m.status === "live"));
+  const allMatches = useApp((s) => s.matches);
+  const matches = allMatches.filter((m) => m.status === "live");
   if (matches.length === 0)
     return <Empty icon={<Clock className="h-6 w-6" />} title="No live tables" body="Start a tournament round to bring tables online." />;
   return (
@@ -76,7 +77,8 @@ function LiveTab() {
 }
 
 function PastTab() {
-  const matches = useApp((s) => s.matches.filter((m) => m.status === "completed"));
+  const allMatches = useApp((s) => s.matches);
+  const matches = allMatches.filter((m) => m.status === "completed");
   if (matches.length === 0)
     return <Empty icon={<History className="h-6 w-6" />} title="No completed games yet" body="Approved match wins will land here." />;
   return (
@@ -99,7 +101,8 @@ function PastTab() {
 }
 
 function PendingTab() {
-  const matches = useApp((s) => s.matches.filter((m) => m.status === "pending"));
+  const allMatches = useApp((s) => s.matches);
+  const matches = allMatches.filter((m) => m.status === "pending");
   const updateMatch = useApp((s) => s.updateMatch);
   if (matches.length === 0)
     return <Empty icon={<Check className="h-6 w-6" />} title="Nothing pending" body="Match wins appear here for your approval at ≥14 points." />;

@@ -11,8 +11,10 @@ export function LiveTable({ match }: { match: Match }) {
   const updateMatch = useApp((s) => s.updateMatch);
   const triggerHangJack = useApp((s) => s.triggerHangJack);
   const flash = useApp((s) => s.hangJackFlash[match.tableId]);
-  const entries = useApp((s) =>
-    s.entries.filter((e) => e.matchId === match.id).slice(0, 6),
+  const allEntries = useApp((s) => s.entries);
+  const entries = useMemo(
+    () => allEntries.filter((e) => e.matchId === match.id).slice(0, 6),
+    [allEntries, match.id],
   );
 
   // which team does current user belong to (for player view)
