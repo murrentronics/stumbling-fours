@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { useApp } from "@/lib/store";
-import { Spade, Shield, User } from "lucide-react";
+import { Spade, Shield, User, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export function TopNav() {
-  const role = useApp((s) => s.role);
-  const setRole = useApp((s) => s.setRole);
+  const { profile, isAdmin, signOut, user } = useAuth();
+  const label = profile?.display_name || user?.email?.split("@")[0] || "Player";
 
   return (
     <header className="px-5 sm:px-8 pt-6 pb-4 flex flex-wrap items-center justify-between gap-4">
@@ -32,23 +32,16 @@ export function TopNav() {
 
       <div className="flex items-center gap-2 rounded-full p-1.5"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider"
+             style={isAdmin ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" } : { color: "var(--color-foreground)" }}>
+          {isAdmin ? <Shield className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+          {isAdmin ? "Admin" : "Player"} · {label}
+        </div>
         <button
-          onClick={() => setRole("player")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition ${
-            role === "player" ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/60"
-          }`}
-          style={role === "player" ? { background: "var(--gradient-gold)" } : {}}
+          onClick={() => signOut()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-foreground/70 hover:text-foreground transition"
         >
-          <User className="h-3.5 w-3.5" /> Player
-        </button>
-        <button
-          onClick={() => setRole("admin")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition ${
-            role === "admin" ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/60"
-          }`}
-          style={role === "admin" ? { background: "var(--gradient-gold)" } : {}}
-        >
-          <Shield className="h-3.5 w-3.5" /> Admin
+          <LogOut className="h-3.5 w-3.5" /> Sign out
         </button>
       </div>
     </header>
