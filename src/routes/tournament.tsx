@@ -208,31 +208,42 @@ function TournamentPage() {
               <div className="space-y-2">
                 {Array.from({ length: pp }).map((_, i) => {
                   const p = t.players[i] ?? { email: "", name: "" };
+                  // Emails already used elsewhere on any team (so we don't reassign)
+                  const used = new Set(
+                    teams.flatMap((tt) =>
+                      tt.players
+                        .map((pl, idx) => (tt.id === t.id && idx === i ? "" : pl.email))
+                        .filter(Boolean),
+                    ),
+                  );
                   return (
-                    <div key={i} className="grid grid-cols-2 gap-2">
-                      <input
+                    <div key={i}>
+                      <select
                         className="ts-input"
-                        placeholder={`Player ${i + 1} name`}
-                        value={p.name}
-                        disabled={!canEdit}
-                        onChange={(e) => {
-                          const players = [...t.players];
-                          players[i] = { ...p, name: e.target.value };
-                          updateTeam(t.id, { players });
-                        }}
-                      />
-                      <input
-                        className="ts-input"
-                        type="email"
-                        placeholder="player@email.com"
                         value={p.email}
                         disabled={!canEdit}
                         onChange={(e) => {
+                          const email = e.target.value;
+                          const m = members.find((mm) => mm.email === email);
                           const players = [...t.players];
-                          players[i] = { ...p, email: e.target.value };
+                          players[i] = {
+                            email,
+                            name: m?.display_name || (email ? email.split("@")[0] : ""),
+                          };
                           updateTeam(t.id, { players });
                         }}
-                      />
+                      >
+                        <option value="">— Select Player {i + 1} —</option>
+                        {members.map((m) => (
+                          <option
+                            key={m.id}
+                            value={m.email}
+                            disabled={used.has(m.email)}
+                          >
+                            {(m.display_name || m.email.split("@")[0]) + ` (${m.email})`}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   );
                 })}
