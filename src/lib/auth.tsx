@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]);
     setProfile((p as Profile | null) ?? null);
     setIsAdmin(!!roleRow);
+    useApp.getState().setRole(roleRow ? "admin" : "player");
   };
 
   useEffect(() => {
