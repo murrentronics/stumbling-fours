@@ -32,6 +32,15 @@ function TournamentPage() {
   const [second, setSecond] = useState(tournament?.prizes.second ?? "$400");
   const [third, setThird] = useState(tournament?.prizes.third ?? "$200");
   const [teams, setTeams] = useState<Team[]>(tournament?.teams ?? []);
+  const [members, setMembers] = useState<Member[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("id,email,display_name")
+      .order("display_name")
+      .then(({ data }) => setMembers((data as Member[]) ?? []));
+  }, []);
 
   const canEdit = isAdmin;
 
