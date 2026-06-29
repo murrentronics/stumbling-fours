@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CasinoFrame } from "@/components/CasinoFrame";
 import { TopNav } from "@/components/TopNav";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { useRouterState, Navigate } from "@tanstack/react-router";
 
 function NotFoundComponent() {
   return (
@@ -95,15 +97,44 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <CasinoFrame>
-        <TopNav />
-        <main className="px-5 sm:px-8 pb-10">
-          <Outlet />
-        </main>
-        <footer className="px-5 sm:px-8 pb-6 text-center text-xs text-foreground/50 tracking-widest uppercase">
-          Stumbling Fours · Built for the Trini All Fours table
-        </footer>
-      </CasinoFrame>
+      <AuthProvider>
+        <CasinoFrame>
+          <AuthGate />
+        </CasinoFrame>
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AuthGate() {
+  const { session, loading } = useAuth();
+  const path = useRouterState({ select: (s) => s.location.pathname });
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] grid place-items-center text-foreground/60 text-sm tracking-widest uppercase">
+        Shuffling the deck…
+      </div>
+    );
+  }
+
+  if (!session && path !== "/auth") {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (session && path === "/auth") {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <>
+      {session && <TopNav />}
+      <main className="px-5 sm:px-8 pb-10">
+        <Outlet />
+      </main>
+      <footer className="px-5 sm:px-8 pb-6 text-center text-xs text-foreground/50 tracking-widest uppercase">
+        Stumbling Fours · Built for the Trini All Fours table
+      </footer>
+    </>
   );
 }

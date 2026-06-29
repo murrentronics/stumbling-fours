@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useApp, type Team } from "@/lib/store";
-import { Trophy, Plus, Trash2, Lock, Shuffle, Medal } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { Trophy, Plus, Trash2, Lock, Shuffle, Medal, Shield, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({
@@ -14,7 +16,7 @@ export const Route = createFileRoute("/tournament")({
 });
 
 function TournamentPage() {
-  const role = useApp((s) => s.role);
+  const { isAdmin } = useAuth();
   const tournament = useApp((s) => s.tournament);
   const setTournament = useApp((s) => s.setTournament);
 
@@ -26,7 +28,7 @@ function TournamentPage() {
   const [third, setThird] = useState(tournament?.prizes.third ?? "$200");
   const [teams, setTeams] = useState<Team[]>(tournament?.teams ?? []);
 
-  const canEdit = role === "admin";
+  const canEdit = isAdmin;
 
   const addTeam = () => {
     const idx = teams.length + 1;
@@ -75,6 +77,8 @@ function TournamentPage() {
           </button>
         )}
       </div>
+
+      {canEdit && <AdminPromotionPanel />}
 
       {/* Settings */}
       <section className="ornate-border p-6 grid md:grid-cols-2 gap-5">
@@ -235,6 +239,49 @@ function TournamentPage() {
         .ts-input:disabled { opacity: 0.7; cursor: not-allowed; }
       `}</style>
     </div>
+  );
+}
+
+function AdminPromotionPanel() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setErr(null); setMsg(null);
+    const { error } = await supabase.rpc("promote_to_admin", { _email: email });
+    setBusy(false);
+    if (error) setErr(error.message);
+    else { setMsg(`${email} is now an admin.`); setEmail(""); }
+  };
+
+  return (
+    <section className="ornate-border p-6">
+      <h2 className="font-display font-black text-2xl gold-text flex items-center gap-2 mb-1">
+        <Shield className="h-6 w-6" /> Admin Controls
+      </h2>
+      <p className="text-sm text-foreground/65 mb-4">
+        Promote a registered user to admin. They must already have an account.
+      </p>
+      <form onSubmit={submit} className="flex flex-wrap gap-2 items-center">
+        <input
+          type="email"
+          required
+          placeholder="user@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="ts-input flex-1 min-w-[240px]"
+        />
+        <button disabled={busy || !email} type="submit" className="chip-button chip-button-hover">
+          <UserPlus className="h-4 w-4 mr-2" />
+          {busy ? "Promoting…" : "Make Admin"}
+        </button>
+      </form>
+      {err && <div className="mt-3 text-xs text-red-300 bg-red-950/40 rounded-md p-2">{err}</div>}
+      {msg && <div className="mt-3 text-xs text-emerald-200 bg-emerald-950/40 rounded-md p-2">{msg}</div>}
+    </section>
   );
 }
 
