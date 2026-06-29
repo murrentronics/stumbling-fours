@@ -66,12 +66,56 @@ function Tables() {
 
 function LiveTab() {
   const allMatches = useApp((s) => s.matches);
-  const matches = allMatches.filter((m) => m.status === "live");
+  const currentUserEmail = useApp((s) => s.currentUserEmail);
+  const matches = useMemo(() => allMatches.filter((m) => m.status === "live"), [allMatches]);
+
+  // Auto-pick the user's own table if they're playing; otherwise first table.
+  const myMatch = useMemo(
+    () =>
+      matches.find((m) =>
+        [...m.teamA.players, ...m.teamB.players].some((p) => p.email === currentUserEmail),
+      ),
+    [matches, currentUserEmail],
+  );
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (matches.length === 0) { setSelectedId(null); return; }
+    if (selectedId && matches.some((m) => m.id === selectedId)) return;
+    setSelectedId((myMatch ?? matches[0]).id);
+  }, [matches, myMatch, selectedId]);
+
   if (matches.length === 0)
     return <Empty icon={<Clock className="h-6 w-6" />} title="No live tables" body="Start a tournament round to bring tables online." />;
+
+  const active = matches.find((m) => m.id === selectedId) ?? matches[0];
+
   return (
-    <div className="grid xl:grid-cols-2 gap-6">
-      {matches.map((m) => <LiveTable key={m.id} match={m} />)}
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-marquee tracking-[0.3em] text-xs text-foreground/60 mr-1">SPECTATING</span>
+        {matches.map((m) => {
+          const mine = m.id === myMatch?.id;
+          const isActive = m.id === active.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => setSelectedId(m.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition border ${
+                isActive ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/75"
+              }`}
+              style={{
+                background: isActive ? "var(--gradient-gold)" : "oklch(0.20 0.06 150)",
+                borderColor: "oklch(0.83 0.16 88 / 30%)",
+              }}
+            >
+              {m.tableName}
+              {mine && <span className="ml-1.5 opacity-70">★</span>}
+            </button>
+          );
+        })}
+      </div>
+      <LiveTable match={active} />
     </div>
   );
 }
