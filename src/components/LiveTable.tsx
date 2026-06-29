@@ -263,7 +263,7 @@ function ScoreEntry({
               matchId: match.id,
               teamId: team.id,
               teamName: team.name,
-              high, low, jack, game, total,
+              high, low, jack: jackPts, game, total,
               submittedBy: currentUserEmail,
               ts: Date.now(),
             });
