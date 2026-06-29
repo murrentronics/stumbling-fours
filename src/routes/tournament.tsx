@@ -242,6 +242,49 @@ function TournamentPage() {
   );
 }
 
+function AdminPromotionPanel() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setErr(null); setMsg(null);
+    const { error } = await supabase.rpc("promote_to_admin", { _email: email });
+    setBusy(false);
+    if (error) setErr(error.message);
+    else { setMsg(`${email} is now an admin.`); setEmail(""); }
+  };
+
+  return (
+    <section className="ornate-border p-6">
+      <h2 className="font-display font-black text-2xl gold-text flex items-center gap-2 mb-1">
+        <Shield className="h-6 w-6" /> Admin Controls
+      </h2>
+      <p className="text-sm text-foreground/65 mb-4">
+        Promote a registered user to admin. They must already have an account.
+      </p>
+      <form onSubmit={submit} className="flex flex-wrap gap-2 items-center">
+        <input
+          type="email"
+          required
+          placeholder="user@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="ts-input flex-1 min-w-[240px]"
+        />
+        <button disabled={busy || !email} type="submit" className="chip-button chip-button-hover">
+          <UserPlus className="h-4 w-4 mr-2" />
+          {busy ? "Promoting…" : "Make Admin"}
+        </button>
+      </form>
+      {err && <div className="mt-3 text-xs text-red-300 bg-red-950/40 rounded-md p-2">{err}</div>}
+      {msg && <div className="mt-3 text-xs text-emerald-200 bg-emerald-950/40 rounded-md p-2">{msg}</div>}
+    </section>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
