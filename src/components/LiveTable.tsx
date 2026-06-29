@@ -5,7 +5,6 @@ import { HangJackOverlay } from "./HangJackOverlay";
 import { Crown, Spade, Heart, Diamond, Club } from "lucide-react";
 
 export function LiveTable({ match }: { match: Match }) {
-  const role = useApp((s) => s.role);
   const currentUserEmail = useApp((s) => s.currentUserEmail);
   const addEntry = useApp((s) => s.addEntry);
   const updateMatch = useApp((s) => s.updateMatch);
@@ -71,9 +70,9 @@ export function LiveTable({ match }: { match: Match }) {
           <Seat pos="bottom-left" player={match.teamB.players[1]} team={match.teamB} />
         </div>
 
-        {/* score entry — players see their team only; admin sees both */}
+        {/* score entry — only the team's own players can submit; everyone else spectates */}
         <div className="mt-6 grid md:grid-cols-2 gap-4">
-          {(role === "admin" || myTeam?.id === match.teamA.id) && (
+          {myTeam?.id === match.teamA.id && (
             <ScoreEntry
               match={match}
               team={match.teamA}
@@ -90,7 +89,7 @@ export function LiveTable({ match }: { match: Match }) {
               }}
             />
           )}
-          {(role === "admin" || myTeam?.id === match.teamB.id) && (
+          {myTeam?.id === match.teamB.id && (
             <ScoreEntry
               match={match}
               team={match.teamB}
@@ -212,13 +211,14 @@ function ScoreEntry({
   const currentUserEmail = useApp((s) => s.currentUserEmail);
   const [high, setHigh] = useState(false);
   const [low, setLow] = useState(false);
-  const [jack, setJack] = useState<0 | 1 | 3>(0);
+  const [jack, setJack] = useState(false);
   const [game, setGame] = useState(false);
 
-  const total = (high ? 1 : 0) + (low ? 1 : 0) + jack + (game ? 2 : 0);
+  const jackPts = jack ? 3 : 0;
+  const total = (high ? 1 : 0) + (low ? 1 : 0) + jackPts + (game ? 2 : 0);
   const canSubmit = total > 0;
 
-  const reset = () => { setHigh(false); setLow(false); setJack(0); setGame(false); };
+  const reset = () => { setHigh(false); setLow(false); setJack(false); setGame(false); };
 
   return (
     <div className="rounded-xl p-4 border-2"
@@ -239,10 +239,10 @@ function ScoreEntry({
         <PointBtn label="High" value="+1" active={high} onClick={() => setHigh(!high)} />
         <PointBtn label="Low" value="+1" active={low} onClick={() => setLow(!low)} />
         <PointBtn
-          label={jack === 3 ? "Hang Jack" : "Jack"}
-          value={jack === 3 ? "+3" : "+1"}
-          active={jack > 0}
-          onClick={() => setJack(jack === 0 ? 1 : jack === 1 ? 3 : 0)}
+          label="Hang Jack"
+          value="+3"
+          active={jack}
+          onClick={() => setJack(!jack)}
           accent
         />
         <PointBtn label="Game" value="+2" active={game} onClick={() => setGame(!game)} />
@@ -262,7 +262,7 @@ function ScoreEntry({
               matchId: match.id,
               teamId: team.id,
               teamName: team.name,
-              high, low, jack, game, total,
+              high, low, jack: jackPts, game, total,
               submittedBy: currentUserEmail,
               ts: Date.now(),
             });
