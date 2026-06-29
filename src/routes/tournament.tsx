@@ -78,6 +78,8 @@ function TournamentPage() {
         )}
       </div>
 
+      {canEdit && <AdminPromotionPanel />}
+
       {/* Settings */}
       <section className="ornate-border p-6 grid md:grid-cols-2 gap-5">
         <Field label="Tournament Name">
