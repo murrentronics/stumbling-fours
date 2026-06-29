@@ -71,9 +71,9 @@ export function LiveTable({ match }: { match: Match }) {
           <Seat pos="bottom-left" player={match.teamB.players[1]} team={match.teamB} />
         </div>
 
-        {/* score entry — players see their team only; admin sees both */}
+        {/* score entry — only the team's own players can submit; everyone else spectates */}
         <div className="mt-6 grid md:grid-cols-2 gap-4">
-          {(role === "admin" || myTeam?.id === match.teamA.id) && (
+          {myTeam?.id === match.teamA.id && (
             <ScoreEntry
               match={match}
               team={match.teamA}
