@@ -34,15 +34,17 @@ function TournamentPage() {
   const canEdit = isAdmin;
 
   const addTeam = () => {
-    const idx = teams.length + 1;
+    const base = teams.length;
+    const makeTeam = (idx: number, color: "team-a" | "team-b"): Team => ({
+      id: `t-${Date.now()}-${idx}`,
+      name: `Team ${idx}`,
+      color,
+      players: Array.from({ length: pp }, () => ({ email: "", name: "" })),
+    });
     setTeams([
       ...teams,
-      {
-        id: `t-${Date.now()}`,
-        name: `Team ${idx}`,
-        color: idx % 2 ? "team-a" : "team-b",
-        players: Array.from({ length: pp }, () => ({ email: "", name: "" })),
-      },
+      makeTeam(base + 1, "team-a"),
+      makeTeam(base + 2, "team-b"),
     ]);
   };
 
