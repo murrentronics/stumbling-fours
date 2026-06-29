@@ -5,7 +5,6 @@ import { HangJackOverlay } from "./HangJackOverlay";
 import { Crown, Spade, Heart, Diamond, Club } from "lucide-react";
 
 export function LiveTable({ match }: { match: Match }) {
-  const role = useApp((s) => s.role);
   const currentUserEmail = useApp((s) => s.currentUserEmail);
   const addEntry = useApp((s) => s.addEntry);
   const updateMatch = useApp((s) => s.updateMatch);
