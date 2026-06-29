@@ -17,8 +17,11 @@ export const Route = createFileRoute("/tournament")({
 
 function TournamentPage() {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const tournament = useApp((s) => s.tournament);
   const setTournament = useApp((s) => s.setTournament);
+  const setMatches = useApp((s) => s.setMatches);
+  const existingMatches = useApp((s) => s.matches);
 
   const [name, setName] = useState(tournament?.name ?? "Stumbling Fours Cup");
   const [pp, setPp] = useState(tournament?.playersPerTeam ?? 2);
