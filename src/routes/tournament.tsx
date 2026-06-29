@@ -61,7 +61,32 @@ function TournamentPage() {
     });
   };
 
+  const startRound = () => {
+    lock();
+    const shuffled = shuffle(teams);
+    const newMatches: Match[] = [];
+    for (let i = 0; i < shuffled.length - 1; i += 2) {
+      const a = shuffled[i];
+      const b = shuffled[i + 1];
+      newMatches.push({
+        id: `m-${Date.now()}-${i}`,
+        tableId: `T-${i / 2 + 1}`,
+        tableName: `Table ${i / 2 + 1}`,
+        teamA: a, teamB: b,
+        scoreA: 0, scoreB: 0,
+        status: "live",
+        round: 1,
+        startedAt: Date.now(),
+      });
+    }
+    // keep completed/past matches, replace live/pending
+    const past = existingMatches.filter((m) => m.status === "completed");
+    setMatches([...newMatches, ...past]);
+    navigate({ to: "/tables" });
+  };
+
   const bracket = generateBracket(teams);
+  const canStart = canEdit && teams.length >= 2 && teams.length % 2 === 0;
 
   return (
     <div className="pt-2 space-y-6">
@@ -71,13 +96,24 @@ function TournamentPage() {
             <Trophy className="h-8 w-8" /> Tournament
           </h1>
           <p className="text-foreground/65 text-sm">
-            {canEdit ? "Set the rules, lock in your teams, and let the bracket fly." : "Read-only — switch to Admin to edit."}
+            {canEdit ? "Set the rules, lock in your teams, and let the bracket fly." : "Read-only — sign in as Admin to edit."}
           </p>
         </div>
         {canEdit && (
-          <button onClick={lock} className="chip-button chip-button-hover">
-            <Lock className="h-4 w-4 mr-2" /> Save Tournament
-          </button>
+          <div className="flex gap-2">
+            <button onClick={lock} className="chip-button chip-button-hover">
+              <Lock className="h-4 w-4 mr-2" /> Save
+            </button>
+            <button
+              onClick={startRound}
+              disabled={!canStart}
+              title={canStart ? "" : "Need an even number of teams (2+)"}
+              className="chip-button chip-button-hover disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: "var(--gradient-crimson)", color: "white" }}
+            >
+              <Play className="h-4 w-4 mr-2" /> Start Round
+            </button>
+          </div>
         )}
       </div>
 
