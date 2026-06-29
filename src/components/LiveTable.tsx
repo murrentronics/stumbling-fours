@@ -212,13 +212,14 @@ function ScoreEntry({
   const currentUserEmail = useApp((s) => s.currentUserEmail);
   const [high, setHigh] = useState(false);
   const [low, setLow] = useState(false);
-  const [jack, setJack] = useState<0 | 1 | 3>(0);
+  const [jack, setJack] = useState(false);
   const [game, setGame] = useState(false);
 
-  const total = (high ? 1 : 0) + (low ? 1 : 0) + jack + (game ? 2 : 0);
+  const jackPts = jack ? 3 : 0;
+  const total = (high ? 1 : 0) + (low ? 1 : 0) + jackPts + (game ? 2 : 0);
   const canSubmit = total > 0;
 
-  const reset = () => { setHigh(false); setLow(false); setJack(0); setGame(false); };
+  const reset = () => { setHigh(false); setLow(false); setJack(false); setGame(false); };
 
   return (
     <div className="rounded-xl p-4 border-2"
