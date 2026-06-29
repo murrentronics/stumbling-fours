@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile((p as Profile | null) ?? null);
     setIsAdmin(!!roleRow);
     useApp.getState().setRole(roleRow ? "admin" : "player");
+    useApp.getState().setCurrentUserEmail((p as Profile | null)?.email ?? "");
   };
 
   useEffect(() => {
