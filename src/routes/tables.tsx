@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
 import { LiveTable } from "@/components/LiveTable";
 import { Check, X, Clock, History } from "lucide-react";
