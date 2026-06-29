@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useApp, type Team } from "@/lib/store";
-import { Trophy, Plus, Trash2, Lock, Shuffle, Medal } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { Trophy, Plus, Trash2, Lock, Shuffle, Medal, Shield, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({
@@ -14,7 +16,7 @@ export const Route = createFileRoute("/tournament")({
 });
 
 function TournamentPage() {
-  const role = useApp((s) => s.role);
+  const { isAdmin } = useAuth();
   const tournament = useApp((s) => s.tournament);
   const setTournament = useApp((s) => s.setTournament);
 
@@ -26,7 +28,7 @@ function TournamentPage() {
   const [third, setThird] = useState(tournament?.prizes.third ?? "$200");
   const [teams, setTeams] = useState<Team[]>(tournament?.teams ?? []);
 
-  const canEdit = role === "admin";
+  const canEdit = isAdmin;
 
   const addTeam = () => {
     const idx = teams.length + 1;
