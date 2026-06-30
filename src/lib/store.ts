@@ -90,4 +90,10 @@ export const useApp = create<State>((set) => ({
   hangJackFlash: {},
   triggerHangJack: (tableId) =>
     set((s) => ({ hangJackFlash: { ...s.hangJackFlash, [tableId]: Date.now() } })),
+  clearHangJack: (tableId) =>
+    set((s) => {
+      const next = { ...s.hangJackFlash };
+      delete next[tableId];
+      return { hangJackFlash: next };
+    }),
 }));
