@@ -48,7 +48,7 @@ function TournamentPage() {
     const base = teams.length;
     const makeTeam = (idx: number, color: "team-a" | "team-b"): Team => ({
       id: `t-${Date.now()}-${idx}`,
-      name: `Team ${idx}`,
+      name: "",
       color,
       players: Array.from({ length: pp }, () => ({ email: "", name: "" })),
     });
