@@ -186,6 +186,7 @@ function TournamentPage() {
                 <input
                   className="ts-input flex-1 font-display font-bold"
                   value={t.name}
+                  placeholder={`Enter team name (${t.color === "team-a" ? "Red" : "Blue"})`}
                   disabled={!canEdit}
                   onChange={(e) => updateTeam(t.id, { name: e.target.value })}
                 />
