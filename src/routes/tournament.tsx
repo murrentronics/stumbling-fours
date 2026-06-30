@@ -48,7 +48,7 @@ function TournamentPage() {
     const base = teams.length;
     const makeTeam = (idx: number, color: "team-a" | "team-b"): Team => ({
       id: `t-${Date.now()}-${idx}`,
-      name: `Team ${idx}`,
+      name: "",
       color,
       players: Array.from({ length: pp }, () => ({ email: "", name: "" })),
     });
@@ -186,6 +186,7 @@ function TournamentPage() {
                 <input
                   className="ts-input flex-1 font-display font-bold"
                   value={t.name}
+                  placeholder={`Enter team name (${t.color === "team-a" ? "Red" : "Blue"})`}
                   disabled={!canEdit}
                   onChange={(e) => updateTeam(t.id, { name: e.target.value })}
                 />

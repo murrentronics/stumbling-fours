@@ -27,7 +27,7 @@ export function TopNav() {
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         <NavLink to="/">Home</NavLink>
         <NavLink to="/tables">Tables</NavLink>
-        <NavLink to="/tournament">Tournament</NavLink>
+        {isAdmin && <NavLink to="/tournament">Tournament</NavLink>}
       </nav>
 
       <div className="flex items-center gap-2 rounded-full p-1.5"

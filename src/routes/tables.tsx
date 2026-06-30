@@ -67,9 +67,12 @@ function Tables() {
 function LiveTab() {
   const allMatches = useApp((s) => s.matches);
   const currentUserEmail = useApp((s) => s.currentUserEmail);
-  const matches = useMemo(() => allMatches.filter((m) => m.status === "live"), [allMatches]);
+  const role = useApp((s) => s.role);
+  const matches = useMemo(
+    () => allMatches.filter((m) => m.status === "live" || m.status === "pending"),
+    [allMatches],
+  );
 
-  // Auto-pick the user's own table if they're playing; otherwise first table.
   const myMatch = useMemo(
     () =>
       matches.find((m) =>
@@ -89,28 +92,51 @@ function LiveTab() {
     return <Empty icon={<Clock className="h-6 w-6" />} title="No live tables" body="Start a tournament round to bring tables online." />;
 
   const active = matches.find((m) => m.id === selectedId) ?? matches[0];
+  const liveCount = matches.filter((m) => m.status === "live").length;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-marquee tracking-[0.3em] text-xs text-foreground/60 mr-1">SPECTATING</span>
+        <span className="font-marquee tracking-[0.3em] text-xs text-foreground/60 mr-1 flex items-center gap-2">
+          SPECTATING
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                style={{ background: "var(--gradient-crimson)", color: "white" }}>
+            {liveCount} LIVE
+          </span>
+        </span>
         {matches.map((m) => {
           const mine = m.id === myMatch?.id;
           const isActive = m.id === active.id;
+          const pending = m.status === "pending";
           return (
             <button
               key={m.id}
               onClick={() => setSelectedId(m.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition border ${
-                isActive ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/75"
+              className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition border flex items-center gap-2 ${
+                isActive && !pending ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/85"
               }`}
               style={{
-                background: isActive ? "var(--gradient-gold)" : "oklch(0.20 0.06 150)",
-                borderColor: "oklch(0.83 0.16 88 / 30%)",
+                background: pending
+                  ? "oklch(0.55 0.18 145)"
+                  : isActive
+                    ? "var(--gradient-gold)"
+                    : "oklch(0.20 0.06 150)",
+                borderColor: pending ? "white" : "oklch(0.83 0.16 88 / 30%)",
+                color: pending ? "white" : undefined,
               }}
             >
-              {m.tableName}
-              {mine && <span className="ml-1.5 opacity-70">★</span>}
+              <span>{m.tableName}</span>
+              {pending && role === "admin" && (
+                <Check className="h-3.5 w-3.5" strokeWidth={3} style={{ color: "white" }} />
+              )}
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black"
+                    style={{
+                      background: pending ? "oklch(0 0 0 / 30%)" : "oklch(0 0 0 / 35%)",
+                      color: pending ? "white" : "var(--color-foreground)",
+                    }}>
+                {m.scoreA}–{m.scoreB}
+              </span>
+              {mine && <span className="opacity-80">★</span>}
             </button>
           );
         })}
