@@ -27,7 +27,7 @@ export function LiveTable({ match }: { match: Match }) {
 
   return (
     <div className="ornate-border relative overflow-hidden">
-      <HangJackOverlay flashAt={flash} />
+      <HangJackOverlay flashAt={flash} tableId={match.tableId} />
 
       <div className="p-5 sm:p-7">
         {/* table header */}
