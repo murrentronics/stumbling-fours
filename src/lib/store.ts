@@ -67,6 +67,7 @@ type State = {
   // hang jack flash trigger keyed per table
   hangJackFlash: Record<string, number>;
   triggerHangJack: (tableId: string) => void;
+  clearHangJack: (tableId: string) => void;
 };
 
 export const useApp = create<State>((set) => ({
