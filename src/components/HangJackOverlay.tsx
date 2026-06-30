@@ -43,7 +43,7 @@ function playSlap() {
   }
 }
 
-export function HangJackOverlay({ flashAt }: { flashAt?: number }) {
+export function HangJackOverlay({ flashAt, tableId }: { flashAt?: number; tableId: string }) {
   const [visible, setVisible] = useState(false);
   const lastShown = useRef<number | undefined>(undefined);
 
@@ -53,9 +53,13 @@ export function HangJackOverlay({ flashAt }: { flashAt?: number }) {
     lastShown.current = flashAt;
     setVisible(true);
     playSlap();
-    const t = setTimeout(() => setVisible(false), 3200);
-    return () => clearTimeout(t);
-  }, [flashAt]);
+    const hide = setTimeout(() => setVisible(false), 3200);
+    // clear from store so switching tabs won't re-fire
+    const clear = setTimeout(() => {
+      import("@/lib/store").then(({ useApp }) => useApp.getState().clearHangJack(tableId));
+    }, 3400);
+    return () => { clearTimeout(hide); clearTimeout(clear); };
+  }, [flashAt, tableId]);
 
   return (
     <AnimatePresence>
