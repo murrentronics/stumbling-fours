@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CasinoFrame } from "@/components/CasinoFrame";
 import { SplashScreen } from "@/components/SplashScreen";
+import { UpdateBanner } from "@/components/UpdateBanner";
+import { useAppUpdate } from "@/lib/useAppUpdate";
 import { TopNav } from "@/components/TopNav";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { useRouterState, Navigate } from "@tanstack/react-router";
@@ -99,11 +101,21 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function AppWithUpdate() {
+  const { update, dismiss } = useAppUpdate();
+  return (
+    <>
+      <CasinoFrame>
+        <AuthGate />
+      </CasinoFrame>
+      {update && <UpdateBanner update={update} onDismiss={dismiss} />}
+    </>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  // Show splash on every page load (client only — false on SSR to avoid flash)
   const [showSplash, setShowSplash] = useState(() => typeof window !== "undefined");
-
   const handleSplashDone = () => setShowSplash(false);
 
   return (
@@ -111,9 +123,7 @@ function RootComponent() {
       {showSplash && <SplashScreen onDone={handleSplashDone} />}
       <div style={{ visibility: showSplash ? "hidden" : "visible" }}>
         <AuthProvider>
-          <CasinoFrame>
-            <AuthGate />
-          </CasinoFrame>
+          <AppWithUpdate />
         </AuthProvider>
       </div>
     </QueryClientProvider>

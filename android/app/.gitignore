@@ -1,0 +1,6 @@
+/build/*
+!/build/.npmkeep
+
+# Release keystore — never commit
+*.jks
+*.keystore

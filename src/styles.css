@@ -132,6 +132,8 @@
     overflow: hidden;
     height: 100%;
   }
+  /* Hide scrollbar on the casino frame inner scroll container */
+  .casino-scroll::-webkit-scrollbar { display: none; }
   body {
     color: var(--color-foreground);
     font-family: var(--font-sans);

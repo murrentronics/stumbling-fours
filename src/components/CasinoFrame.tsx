@@ -51,7 +51,7 @@ export function CasinoFrame({ children }: { children: ReactNode }) {
 
       {/* Scrollable content area inset from the frame edges */}
       <div
-        className="fixed overflow-y-auto"
+        className="casino-scroll fixed overflow-y-auto"
         style={{
           zIndex: 10,
           top: 18,
@@ -61,6 +61,8 @@ export function CasinoFrame({ children }: { children: ReactNode }) {
           borderRadius: "20px",
           background:
             "radial-gradient(ellipse at top, oklch(0.22 0.07 295 / 40%), transparent 60%), oklch(0.10 0.03 150)",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
         }}
       >
         {children}

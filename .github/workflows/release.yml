@@ -1,0 +1,148 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ── 2. Java 21 ─────────────────────────────────────────────────────────
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # ── 3. Node 20 ─────────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # ── 4. Install JS deps ─────────────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── 5. Build Capacitor web bundle ──────────────────────────────────────
+      - name: Build Android web bundle
+        run: |
+          rm -rf dist/client
+          npx cross-env NODE_OPTIONS="--max-old-space-size=4096" vite build --config vite.capacitor.config.ts
+
+      # ── 6. Swap capacitor HTML as index.html ───────────────────────────────
+      - name: Fix index.html for Capacitor
+        run: cp dist/client/index.capacitor.html dist/client/index.html
+
+      # ── 7. Read version from .env ──────────────────────────────────────────
+      - name: Read app version
+        id: version
+        run: |
+          VERSION=$(grep 'VITE_APP_VERSION' .env | sed 's/VITE_APP_VERSION="\(.*\)"/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=v$VERSION" >> $GITHUB_OUTPUT
+
+      # ── 8. Copy web assets into Android assets folder ─────────────────────
+      - name: Copy web assets to Android
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          rm -rf android/app/src/main/assets/public/*
+          cp -r dist/client/. android/app/src/main/assets/public/
+          node -e "
+            const fs = require('fs');
+            const cfg = {
+              appId: 'com.stumblingfours.app',
+              appName: 'Stumbling Fours',
+              webDir: 'dist/client',
+              plugins: {
+                SplashScreen: { launchShowDuration: 0, launchAutoHide: true, showSpinner: false, backgroundColor: '#0a0a0a' },
+                Browser: {}
+              },
+              android: { backgroundColor: '#0a0a0a', captureInput: true, webContentsDebuggingEnabled: false }
+            };
+            fs.writeFileSync('android/app/src/main/assets/capacitor.config.json', JSON.stringify(cfg, null, 2));
+            console.log('capacitor.config.json written');
+          "
+
+      # ── 9. Fix gradle.properties for CI ───────────────────────────────────
+      - name: Fix gradle.properties for CI
+        run: sed -i '/org.gradle.java.home/d' android/gradle.properties
+
+      # ── 10. Decode keystore ────────────────────────────────────────────────
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/stumbling-fours.jks
+
+      # ── 11. Make gradlew executable ────────────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # ── 12. Install Android SDK ────────────────────────────────────────────
+      - name: Install Android SDK
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-36" \
+            "build-tools;35.0.0" 2>/dev/null || \
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-36" \
+            "build-tools;34.0.0"
+
+      # ── 13. Build release APK ──────────────────────────────────────────────
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      # ── 14. Rename APK ─────────────────────────────────────────────────────
+      - name: Rename APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release/ -name "*.apk" | head -1)
+          echo "Found APK: $APK"
+          mv "$APK" android/app/build/outputs/apk/release/stumbling-fours.apk
+
+      # ── 15. Create GitHub Release with APK ────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: Stumbling Fours ${{ steps.version.outputs.TAG }}
+          body: |
+            ## Stumbling Fours ${{ steps.version.outputs.TAG }}
+
+            Download the APK below and install on your Android device.
+
+            > Enable "Install from unknown sources" in Android settings if prompted.
+          files: android/app/build/outputs/apk/release/stumbling-fours.apk
+          make_latest: true
+          prerelease: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 16. Build & deploy download page to Cloudflare Pages ─────────────
+      - name: Build download page
+        run: node scripts/build-download-only.cjs
+
+      - name: Inject version into download page
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          sed -i "s/Download APK/Download APK v${VERSION}/" dist/client/index.html
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/client --project-name=stumbling-fours --commit-dirty=true

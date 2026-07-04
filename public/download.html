@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stumbling Fours — Download</title>
+  <meta name="description" content="The All Fours tournament scoring app for proper Trini tournament nights. Download the Android app." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gold: #d4a843;
+      --gold-glow: rgba(212,168,67,0.3);
+      --crimson: #c0392b;
+      --bg: #0a0a0a;
+      --card: #141414;
+      --border: rgba(212,168,67,0.2);
+      --text: #f0ece0;
+      --muted: #888070;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      background:
+        radial-gradient(ellipse at 30% 0%, rgba(212,168,67,0.12) 0%, transparent 55%),
+        radial-gradient(ellipse at 70% 100%, rgba(192,57,43,0.10) 0%, transparent 55%);
+      text-align: center;
+    }
+    .logo {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 28px;
+      box-shadow: 0 0 50px var(--gold-glow), 0 0 100px rgba(212,168,67,0.12);
+    }
+    h1 {
+      font-size: clamp(2rem, 8vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      background: linear-gradient(135deg, #f5d87a 0%, #d4a843 50%, #9a6f1e 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      letter-spacing: 0.35em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .desc {
+      max-width: 480px;
+      color: rgba(240,236,224,0.7);
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 36px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: #0a0a0a;
+      background: linear-gradient(135deg, #f5d87a 0%, #d4a843 60%, #b8891c 100%);
+      box-shadow: 0 4px 0 #7a5510, 0 8px 24px rgba(212,168,67,0.35);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #7a5510, 0 14px 30px rgba(212,168,67,0.45); }
+    .btn:active { transform: translateY(1px); box-shadow: 0 2px 0 #7a5510, 0 4px 12px rgba(212,168,67,0.25); }
+    .btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+    .badge {
+      margin-top: 16px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      max-width: 700px;
+      width: 100%;
+      margin: 56px auto 0;
+      padding: 0 8px;
+    }
+    .feature {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 20px;
+      text-align: center;
+    }
+    .feature-icon { font-size: 2rem; margin-bottom: 10px; }
+    .feature-title { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; color: var(--gold); }
+    .feature-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    footer {
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <img src="assets/logo.png" alt="Stumbling Fours" class="logo" onerror="this.style.display='none'" />
+    <h1>STUMBLING FOURS</h1>
+    <p class="subtitle">All Fours · Trinidad Card Game</p>
+    <p class="desc">
+      Run live tournament tables, capture every High, Low, Jack &amp; Game,
+      and crown your champion — built for proper Trini tournament nights.
+    </p>
+    <a id="dl-btn" href="#" class="btn" style="opacity:0.5;pointer-events:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      <span class="btn-text">Download APK</span>
+    </a>
+    <p class="badge">Android · Free · No account required to spectate</p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🃏</div>
+        <div class="feature-title">Live Tables</div>
+        <div class="feature-desc">Real-time scoring for every table simultaneously</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏆</div>
+        <div class="feature-title">Tournaments</div>
+        <div class="feature-desc">Full bracket from round 1 to the final</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Instant Updates</div>
+        <div class="feature-desc">Scores sync in real-time across all devices</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎰</div>
+        <div class="feature-title">Casino Style</div>
+        <div class="feature-desc">Built to look and feel like a proper tournament night</div>
+      </div>
+    </div>
+  </section>
+  <footer>Stumbling Fours · Built for the Trini All Fours table</footer>
+
+  <script>
+    const OWNER = "murrentronics";
+    const REPO  = "stumbling-fours";
+    fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`, {
+      headers: { Accept: "application/vnd.github+json" }
+    })
+    .then(r => r.json())
+    .then(data => {
+      const tag = data.tag_name || "";
+      const version = tag.replace(/^v/, "");
+      const apk = (data.assets || []).find(a => a.name.endsWith(".apk"));
+      const btn = document.getElementById("dl-btn");
+      if (version) {
+        btn.querySelector(".btn-text").textContent = `Download APK  v${version}`;
+      }
+      if (apk) {
+        btn.href = apk.browser_download_url;
+      } else {
+        btn.href = `https://github.com/${OWNER}/${REPO}/releases/latest`;
+      }
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
+    })
+    .catch(() => {
+      const btn = document.getElementById("dl-btn");
+      btn.href = `https://github.com/${OWNER}/${REPO}/releases/latest`;
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
+    });
+  </script>
+</body>
+</html>
