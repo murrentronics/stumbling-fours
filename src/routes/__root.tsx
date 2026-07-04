@@ -15,6 +15,7 @@ import { CasinoFrame } from "@/components/CasinoFrame";
 import { TopNav } from "@/components/TopNav";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { useRouterState, Navigate } from "@tanstack/react-router";
+import { useRealtimeSync } from "@/lib/realtime";
 
 function NotFoundComponent() {
   return (
@@ -113,6 +114,7 @@ function RootComponent() {
 function AuthGate() {
   const { session, loading } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  useRealtimeSync(!!session);
 
   if (loading) {
     return (

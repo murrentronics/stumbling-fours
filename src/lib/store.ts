@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { supabase } from "./supabase";
 
 export type Role = "admin" | "player";
 
@@ -17,7 +18,7 @@ export type RoundEntry = {
   teamName: string;
   high: boolean;
   low: boolean;
-  jack: number; // 0, 1, or 3 (hang jack)
+  jack: number; // 0 or 3
   game: boolean;
   total: number;
   submittedBy: string;
@@ -64,10 +65,12 @@ type State = {
   entries: RoundEntry[];
   addEntry: (e: RoundEntry) => void;
 
-  // hang jack flash trigger keyed per table
   hangJackFlash: Record<string, number>;
   triggerHangJack: (tableId: string) => void;
   clearHangJack: (tableId: string) => void;
+
+  _hydrating: boolean;
+  hydrateSnapshot: (s: { tournament: Tournament | null; matches: Match[]; entries: RoundEntry[] } | null) => void;
 };
 
 export const useApp = create<State>((set) => ({
@@ -96,4 +99,53 @@ export const useApp = create<State>((set) => ({
       delete next[tableId];
       return { hangJackFlash: next };
     }),
+
+  _hydrating: false,
+  hydrateSnapshot: (snap) =>
+    set({
+      _hydrating: true,
+      tournament: snap?.tournament ?? null,
+      matches: snap?.matches ?? [],
+      entries: snap?.entries ?? [],
+    }),
 }));
+
+// Reset _hydrating flag immediately after apply (microtask so subscribers see it as true)
+useApp.subscribe((s) => {
+  if (s._hydrating) queueMicrotask(() => useApp.setState({ _hydrating: false }));
+});
+
+// Auto-push snapshot to Supabase on any relevant change.
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+let lastPushed = "";
+async function pushSnapshot() {
+  const s = useApp.getState();
+  const payload = { tournament: s.tournament, matches: s.matches, entries: s.entries };
+  const serialized = JSON.stringify(payload);
+  if (serialized === lastPushed) return;
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return;
+  lastPushed = serialized;
+  await supabase
+    .from("game_snapshot")
+    .upsert(
+      { id: 1, data: payload, updated_by: auth.user.id, updated_at: new Date().toISOString() },
+      { onConflict: "id" },
+    );
+}
+function schedulePush() {
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushSnapshot, 200);
+}
+
+let prev = useApp.getState();
+useApp.subscribe((s) => {
+  const changed =
+    s.tournament !== prev.tournament || s.matches !== prev.matches || s.entries !== prev.entries;
+  prev = s;
+  if (changed && !s._hydrating) schedulePush();
+});
+
+export function markRemoteSnapshotHash(data: unknown) {
+  lastPushed = JSON.stringify(data);
+}
