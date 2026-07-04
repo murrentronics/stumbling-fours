@@ -22,63 +22,65 @@ public class MainActivity extends BridgeActivity {
             getBridge().getWebView().clearCache(true);
         }
 
-        setupImmersiveMode();
+        setupWindow();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        setupImmersiveMode();
+        // Do NOT re-apply immersive mode here — it interrupts keyboard focus
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) {
-            setupImmersiveMode();
-        }
+        // Do NOT re-apply immersive mode here — this fires when the keyboard
+        // appears/disappears and calling hide(navigationBars) at that moment
+        // cancels the IME focus and freezes inputs.
     }
 
-    private void setupImmersiveMode() {
+    private void setupWindow() {
         Window window = getWindow();
         View decorView = window.getDecorView();
 
         // Keep screen on — prevents sleep while app is in foreground
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Draw edge-to-edge — app content goes behind status bar AND nav bar
+        // Draw edge-to-edge so the app fills the whole screen
         WindowCompat.setDecorFitsSystemWindows(window, false);
 
-        // Make both bars fully transparent
+        // Transparent bars
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.setStatusBarColor(Color.TRANSPARENT);
             window.setNavigationBarColor(Color.TRANSPARENT);
         }
 
-        // Android 10+ — kill the nav bar scrim
+        // Kill nav bar contrast scrim on Android 10+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.setNavigationBarContrastEnforced(false);
         }
 
-        // Immersive sticky mode — hides nav bar, shows on swipe
-        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-        decorView.setSystemUiVisibility(flags);
-
+        // Use WindowInsetsController (API 30+) — this approach does NOT
+        // interfere with the IME because we only hide bars ONCE on startup,
+        // not on every focus change.
         WindowInsetsControllerCompat controller =
-            WindowCompat.getInsetsController(window, decorView);
+                WindowCompat.getInsetsController(window, decorView);
         if (controller != null) {
             controller.setAppearanceLightStatusBars(false);
             controller.setAppearanceLightNavigationBars(false);
             controller.hide(WindowInsetsCompat.Type.statusBars());
-            controller.hide(WindowInsetsCompat.Type.navigationBars());
+            // IMPORTANT: do NOT hide navigationBars — hiding them is what
+            // triggers the focus-change loop that freezes keyboard inputs.
+            // The status bar alone is sufficient for the immersive look.
             controller.setSystemBarsBehavior(
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             );
         }
+
+        // Legacy flags for API < 30 — use LAYOUT flags only, no HIDE_NAVIGATION
+        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_FULLSCREEN;
+        decorView.setSystemUiVisibility(flags);
     }
 }

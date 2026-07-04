@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Spade, Mail, Lock, User as UserIcon, LogIn, UserPlus, Users } from "lucide-react";
+import { Mail, Lock, User as UserIcon, LogIn, UserPlus, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { type TeamColor } from "@/lib/store";
+import logoSrc from "@/assets/logo.png";
 
 type RosterTeam = { id: string; name: string; color: TeamColor };
 
@@ -91,10 +92,10 @@ function AuthPage() {
         {/* Logo / heading */}
         <div className="flex flex-col items-center text-center mb-6">
           <div
-            className="h-14 w-14 rounded-full grid place-items-center mb-3"
-            style={{ background: "var(--gradient-gold)", boxShadow: "var(--shadow-gold)" }}
+            className="rounded-full overflow-hidden mb-3 flex-shrink-0"
+            style={{ width: 96, height: 96, boxShadow: "var(--shadow-gold)" }}
           >
-            <Spade className="h-7 w-7" style={{ color: "oklch(0.18 0.05 150)" }} />
+            <img src={logoSrc} alt="Stumbling Fours" className="w-full h-full object-cover" />
           </div>
           <h1 className="font-display font-black text-3xl gold-text">Stumbling Fours</h1>
           <p className="text-sm text-foreground/65 mt-1">All Fours · Trinidad Card Game</p>
