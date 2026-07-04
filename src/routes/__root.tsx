@@ -19,6 +19,8 @@ import { TopNav } from "@/components/TopNav";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { useRouterState, Navigate } from "@tanstack/react-router";
 import { useRealtimeSync } from "@/lib/realtime";
+import { useWakeLock } from "@/hooks/useWakeLock";
+import { useMusicSync } from "@/lib/useMusicSync";
 
 function NotFoundComponent() {
   return (
@@ -69,7 +71,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1" },
       { title: "Stumbling Fours — All Fours Tournaments" },
       { name: "description", content: "Score and run All Fours tournaments in real time, casino style." },
       { property: "og:title", content: "Stumbling Fours — All Fours Tournaments" },
@@ -134,6 +136,8 @@ function AuthGate() {
   const { session, loading } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   useRealtimeSync(!!session);
+  useWakeLock();
+  const { playing, toggleMusic } = useMusicSync(!!session);
 
   if (loading) {
     return (
@@ -153,7 +157,7 @@ function AuthGate() {
 
   return (
     <>
-      {session && <TopNav />}
+      {session && <TopNav musicPlaying={playing} onToggleMusic={toggleMusic} />}
       <main className="px-5 sm:px-8 pb-10">
         <Outlet />
       </main>

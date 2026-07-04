@@ -139,11 +139,6 @@ jobs:
       - name: Build download page
         run: node scripts/build-download-only.cjs
 
-      - name: Inject version into download page
-        run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          sed -i "s/Download APK/Download APK v${VERSION}/" dist/client/index.html
-
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
