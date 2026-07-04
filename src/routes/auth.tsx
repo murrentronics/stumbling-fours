@@ -151,12 +151,7 @@ function AuthPage() {
                 <select
                   value={teamId}
                   onChange={(e) => setTeamId(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 rounded-lg text-sm outline-none transition appearance-none"
-                  style={{
-                    background: "oklch(0.16 0.04 150)",
-                    border: "1px solid oklch(0.83 0.16 88 / 30%)",
-                    color: "var(--color-foreground)",
-                  }}
+                  className="w-full pl-10 pr-3 py-3 rounded-lg text-sm outline-none transition appearance-none bg-white/10 border border-white/20 text-white focus:border-white/50 focus:bg-white/15"
                 >
                   <option value="">— Choose your team (optional) —</option>
                   {rosterTeams.map((t) => (
@@ -233,6 +228,7 @@ function IconInput({
       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/45">{icon}</div>
       <input
         type={type}
+        inputMode={type === "email" ? "email" : type === "password" ? "text" : "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -240,12 +236,7 @@ function IconInput({
         autoComplete={
           type === "email" ? "email" : type === "password" ? "current-password" : "off"
         }
-        className="w-full pl-10 pr-3 py-2.5 rounded-lg text-sm outline-none transition"
-        style={{
-          background: "oklch(0.16 0.04 150)",
-          border: "1px solid oklch(0.83 0.16 88 / 30%)",
-          color: "var(--color-foreground)",
-        }}
+        className="w-full pl-10 pr-3 py-3 rounded-lg text-sm outline-none transition bg-white/10 border border-white/20 text-white placeholder:text-white/40 focus:border-white/50 focus:bg-white/15"
       />
     </div>
   );
