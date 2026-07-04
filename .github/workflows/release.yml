@@ -73,6 +73,10 @@ jobs:
             console.log('capacitor.config.json written');
           "
 
+      # ── 8b. Run cap sync to generate capacitor-cordova-android-plugins ────
+      - name: Capacitor sync (generates cordova plugins folder)
+        run: npx cap sync android --inline
+
       # ── 9. Fix gradle.properties for CI ───────────────────────────────────
       - name: Fix gradle.properties for CI
         run: sed -i '/org.gradle.java.home/d' android/gradle.properties
