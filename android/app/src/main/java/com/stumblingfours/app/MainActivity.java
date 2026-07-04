@@ -13,40 +13,91 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    // Track whether the soft keyboard is currently visible.
+    // While it is up we must NOT re-apply immersive mode — doing so
+    // cancels the IME session and freezes inputs.
+    private boolean keyboardVisible = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Clear WebView cache on every launch so updated APKs always load fresh JS
+        // Clear WebView cache on every launch so updated APKs load fresh JS
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().clearCache(true);
         }
 
         setupWindow();
+        listenForKeyboard();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        // Do NOT re-apply immersive mode here — it interrupts keyboard focus
+        if (!keyboardVisible) {
+            applyImmersive();
+        }
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        // Do NOT re-apply immersive mode here — this fires when the keyboard
-        // appears/disappears and calling hide(navigationBars) at that moment
-        // cancels the IME focus and freezes inputs.
+        // Only re-apply when we regain focus AND keyboard is not open.
+        // This is safe: the keyboard being shown steals focus briefly,
+        // so keyboardVisible=true prevents us from fighting the IME.
+        if (hasFocus && !keyboardVisible) {
+            applyImmersive();
+        }
+    }
+
+    /**
+     * Listen to the Capacitor Keyboard plugin's JS events via the WebView
+     * so we know exactly when the keyboard is up or down.
+     */
+    private void listenForKeyboard() {
+        if (getBridge() == null) return;
+
+        getBridge().getWebView().addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void onKeyboardShow() {
+                keyboardVisible = true;
+            }
+
+            @android.webkit.JavascriptInterface
+            public void onKeyboardHide() {
+                keyboardVisible = false;
+                // Post back to UI thread to restore immersive after keyboard gone
+                runOnUiThread(() -> applyImmersive());
+            }
+        }, "_immersiveKbBridge");
+
+        // Inject the JS listeners once the page is ready
+        getBridge().getWebView().post(() ->
+            getBridge().getWebView().evaluateJavascript(
+                "(function() {" +
+                "  window.addEventListener('ionKeyboardDidShow', function() {" +
+                "    if(window._immersiveKbBridge) window._immersiveKbBridge.onKeyboardShow();" +
+                "  });" +
+                "  window.addEventListener('ionKeyboardDidHide', function() {" +
+                "    if(window._immersiveKbBridge) window._immersiveKbBridge.onKeyboardHide();" +
+                "  });" +
+                "  window.addEventListener('keyboardDidShow', function() {" +
+                "    if(window._immersiveKbBridge) window._immersiveKbBridge.onKeyboardShow();" +
+                "  });" +
+                "  window.addEventListener('keyboardDidHide', function() {" +
+                "    if(window._immersiveKbBridge) window._immersiveKbBridge.onKeyboardHide();" +
+                "  });" +
+                "})()", null)
+        );
     }
 
     private void setupWindow() {
         Window window = getWindow();
-        View decorView = window.getDecorView();
 
-        // Keep screen on — prevents sleep while app is in foreground
+        // Keep screen on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Draw edge-to-edge so the app fills the whole screen
+        // Edge-to-edge
         WindowCompat.setDecorFitsSystemWindows(window, false);
 
         // Transparent bars
@@ -55,32 +106,37 @@ public class MainActivity extends BridgeActivity {
             window.setNavigationBarColor(Color.TRANSPARENT);
         }
 
-        // Kill nav bar contrast scrim on Android 10+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.setNavigationBarContrastEnforced(false);
         }
 
-        // Use WindowInsetsController (API 30+) — this approach does NOT
-        // interfere with the IME because we only hide bars ONCE on startup,
-        // not on every focus change.
+        applyImmersive();
+    }
+
+    /** Full immersive sticky — hides both status bar and nav bar. */
+    private void applyImmersive() {
+        Window window = getWindow();
+        View decorView = window.getDecorView();
+
         WindowInsetsControllerCompat controller =
                 WindowCompat.getInsetsController(window, decorView);
         if (controller != null) {
             controller.setAppearanceLightStatusBars(false);
             controller.setAppearanceLightNavigationBars(false);
             controller.hide(WindowInsetsCompat.Type.statusBars());
-            // IMPORTANT: do NOT hide navigationBars — hiding them is what
-            // triggers the focus-change loop that freezes keyboard inputs.
-            // The status bar alone is sufficient for the immersive look.
+            controller.hide(WindowInsetsCompat.Type.navigationBars());
             controller.setSystemBarsBehavior(
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             );
         }
 
-        // Legacy flags for API < 30 — use LAYOUT flags only, no HIDE_NAVIGATION
+        // Legacy support for API < 30
         int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_FULLSCREEN;
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
         decorView.setSystemUiVisibility(flags);
     }
 }
