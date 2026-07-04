@@ -22,63 +22,45 @@ public class MainActivity extends BridgeActivity {
             getBridge().getWebView().clearCache(true);
         }
 
-        setupWindow();
-        applyImmersive();
+        setupImmersiveMode();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        applyImmersive();
+        setupImmersiveMode();
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
-            applyImmersive();
+            setupImmersiveMode();
         }
     }
 
-    private void setupWindow() {
+    private void setupImmersiveMode() {
         Window window = getWindow();
+        View decorView = window.getDecorView();
 
-        // Keep screen on while app is in foreground
+        // Keep screen on — prevents sleep while app is in foreground
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Edge-to-edge — content goes behind status bar and nav bar
+        // Draw edge-to-edge — app content goes behind status bar AND nav bar
         WindowCompat.setDecorFitsSystemWindows(window, false);
 
-        // Transparent bars
+        // Make both bars fully transparent
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.setStatusBarColor(Color.TRANSPARENT);
             window.setNavigationBarColor(Color.TRANSPARENT);
         }
 
-        // Kill nav bar contrast scrim on Android 10+
+        // Android 10+ — also kill the nav bar scrim
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.setNavigationBarContrastEnforced(false);
         }
-    }
 
-    private void applyImmersive() {
-        Window window = getWindow();
-        View decorView = window.getDecorView();
-
-        // Modern API (Android 11+)
-        WindowInsetsControllerCompat controller =
-                WindowCompat.getInsetsController(window, decorView);
-        if (controller != null) {
-            controller.setAppearanceLightStatusBars(false);
-            controller.setAppearanceLightNavigationBars(false);
-            controller.hide(WindowInsetsCompat.Type.statusBars());
-            controller.hide(WindowInsetsCompat.Type.navigationBars());
-            controller.setSystemBarsBehavior(
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            );
-        }
-
-        // Legacy flags (API < 30)
+        // Immersive sticky mode — hides nav bar, shows on swipe up
         int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -86,5 +68,17 @@ public class MainActivity extends BridgeActivity {
                 | View.SYSTEM_UI_FLAG_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
         decorView.setSystemUiVisibility(flags);
+
+        WindowInsetsControllerCompat controller =
+            WindowCompat.getInsetsController(window, decorView);
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(false);
+            controller.setAppearanceLightNavigationBars(false);
+            controller.hide(WindowInsetsCompat.Type.statusBars());
+            controller.hide(WindowInsetsCompat.Type.navigationBars());
+            controller.setSystemBarsBehavior(
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            );
+        }
     }
 }
