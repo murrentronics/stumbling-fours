@@ -71,7 +71,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
       { title: "Stumbling Fours — All Fours Tournaments" },
       { name: "description", content: "Score and run All Fours tournaments in real time, casino style." },
       { property: "og:title", content: "Stumbling Fours — All Fours Tournaments" },
