@@ -44,6 +44,21 @@
   --color-royal: var(--royal);
   --color-team-a: var(--team-a);
   --color-team-b: var(--team-b);
+  --color-team-c: var(--team-c);
+  --color-team-d: var(--team-d);
+  --color-team-e: var(--team-e);
+  --color-team-f: var(--team-f);
+  --color-team-g: var(--team-g);
+  --color-team-h: var(--team-h);
+  --color-team-i: var(--team-i);
+  --color-team-j: var(--team-j);
+  --color-team-k: var(--team-k);
+  --color-team-m: var(--team-m);
+  --color-team-n: var(--team-n);
+  --color-team-o: var(--team-o);
+  --color-team-p: var(--team-p);
+  --color-team-q: var(--team-q);
+  --color-team-r: var(--team-r);
   --font-display: "Cinzel", serif;
   --font-marquee: "Bebas Neue", sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
@@ -59,8 +74,23 @@
   --gold-soft: oklch(0.72 0.13 80);
   --crimson: oklch(0.52 0.22 25);
   --royal: oklch(0.38 0.18 295);
-  --team-a: oklch(0.62 0.22 25);   /* red */
-  --team-b: oklch(0.55 0.18 250);  /* blue */
+  --team-a: oklch(0.62 0.22 25);   /* crimson */
+  --team-b: oklch(0.55 0.18 250);  /* royal blue */
+  --team-c: oklch(0.62 0.18 160);  /* emerald */
+  --team-d: oklch(0.78 0.18 88);   /* gold */
+  --team-e: oklch(0.55 0.22 300);  /* purple */
+  --team-f: oklch(0.68 0.20 50);   /* orange */
+  --team-g: oklch(0.60 0.16 195);  /* teal */
+  --team-h: oklch(0.65 0.20 355);  /* rose */
+  --team-i: oklch(0.72 0.18 130);  /* lime */
+  --team-j: oklch(0.68 0.16 220);  /* sky */
+  --team-k: oklch(0.74 0.18 70);   /* amber */
+  --team-m: oklch(0.66 0.20 35);   /* coral */
+  --team-n: oklch(0.72 0.14 170);  /* mint */
+  --team-o: oklch(0.60 0.24 330);  /* magenta */
+  --team-p: oklch(0.62 0.08 230);  /* slate */
+  --team-q: oklch(0.64 0.16 55);   /* copper */
+  --team-r: oklch(0.58 0.22 285);  /* violet */
 
   --background: oklch(0.18 0.05 150);
   --foreground: oklch(0.97 0.02 90);
@@ -97,7 +127,11 @@
 
 @layer base {
   * { border-color: var(--color-border); }
-  html, body { background: oklch(0.10 0.03 150); }
+  html, body {
+    background: oklch(0.10 0.03 150);
+    overflow: hidden;
+    height: 100%;
+  }
   body {
     color: var(--color-foreground);
     font-family: var(--font-sans);

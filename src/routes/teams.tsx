@@ -2,7 +2,8 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { Users, Plus, Trash2, UserMinus, Shield } from "lucide-react";
+import { Users, Plus, Trash2, UserMinus, Shield, Search, X } from "lucide-react";
+import { type TeamColor, TEAM_COLORS } from "@/lib/store";
 
 export const Route = createFileRoute("/teams")({
   head: () => ({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/teams")({
   component: TeamsPage,
 });
 
-type RosterTeam = { id: string; name: string; color: "team-a" | "team-b" };
+type RosterTeam = { id: string; name: string; color: TeamColor };
 type Member = { team_id: string; user_id: string; display_name: string; email: string | null };
 type Profile = { id: string; email: string; display_name: string | null };
 
@@ -24,18 +25,33 @@ function TeamsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [name, setName] = useState("");
-  const [color, setColor] = useState<"team-a" | "team-b">("team-a");
+  const [color, setColor] = useState<TeamColor>("team-a");
   const [err, setErr] = useState<string | null>(null);
 
   const load = async () => {
-    const [{ data: t }, { data: m }, { data: p }] = await Promise.all([
+    const [{ data: t }, { data: m }, { data: p }, { data: adminRoles }] = await Promise.all([
       supabase.from("roster_teams").select("*").order("created_at"),
       supabase.from("roster_team_members").select("*"),
       supabase.from("profiles").select("id,email,display_name").order("display_name"),
+      supabase.from("user_roles").select("user_id").eq("role", "admin"),
     ]);
-    setTeams((t as RosterTeam[]) ?? []);
-    setMembers((m as Member[]) ?? []);
-    setProfiles((p as Profile[]) ?? []);
+    const adminIds = new Set((adminRoles ?? []).map((r: { user_id: string }) => r.user_id));
+
+    // Auto-remove any admin who was previously assigned to a team
+    const adminMembers = ((m as Member[]) ?? []).filter((mm) => adminIds.has(mm.user_id));
+    if (adminMembers.length > 0) {
+      await Promise.all(
+        adminMembers.map((mm) =>
+          supabase.from("roster_team_members").delete().eq("user_id", mm.user_id)
+        )
+      );
+    }
+
+    const nonAdminProfiles = ((p as Profile[]) ?? []).filter((pr) => !adminIds.has(pr.id));
+    const nonAdminMembers = ((m as Member[]) ?? []).filter((mm) => !adminIds.has(mm.user_id));
+    setTeams(((t as RosterTeam[]) ?? []).filter((team) => team.name !== 'Admin'));
+    setMembers(nonAdminMembers);
+    setProfiles(nonAdminProfiles);
   };
 
   useEffect(() => {
@@ -48,6 +64,15 @@ function TeamsPage() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // If the currently selected color becomes taken (e.g. after teams load), auto-pick the next free one
+  useEffect(() => {
+    const takenColors = new Set(teams.map((t) => t.color));
+    if (takenColors.has(color)) {
+      const next = TEAM_COLORS.find((tc) => !takenColors.has(tc.value));
+      if (next) setColor(next.value);
+    }
+  }, [teams]);
+
   if (loading) return null;
   if (!isAdmin) return <Navigate to="/" replace />;
 
@@ -57,8 +82,12 @@ function TeamsPage() {
     const trimmed = name.trim();
     if (!trimmed) return;
     const { error } = await supabase.from("roster_teams").insert({ name: trimmed, color });
-    if (error) setErr(error.message);
-    else setName("");
+    if (error) { setErr(error.message); return; }
+    setName("");
+    // auto-advance to next untaken color (teams will reload via realtime, but pre-empt here)
+    const takenAfter = new Set([...teams.map((t) => t.color), color]);
+    const next = TEAM_COLORS.find((tc) => !takenAfter.has(tc.value));
+    if (next) setColor(next.value);
   };
 
   const removeTeam = async (id: string) => {
@@ -85,6 +114,12 @@ function TeamsPage() {
 
   const assignedUserIds = new Set(members.map((m) => m.user_id));
 
+  const [teamSearch, setTeamSearch] = useState("");
+  const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
+  const filteredTeams = teamSearch.trim()
+    ? sortedTeams.filter((t) => t.name.toLowerCase().includes(teamSearch.toLowerCase()))
+    : sortedTeams;
+
   return (
     <div className="pt-2 space-y-6">
       <div>
@@ -101,20 +136,50 @@ function TeamsPage() {
           <Shield className="h-5 w-5 text-foreground/70" />
           <h2 className="font-display font-black text-xl gold-text">Create a Team</h2>
         </div>
-        <form onSubmit={createTeam} className="flex flex-wrap gap-2 items-center">
-          <input
-            className="ts-input flex-1 min-w-[220px]"
-            placeholder="Team name (e.g. Port of Spade)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <select className="ts-input w-32" value={color} onChange={(e) => setColor(e.target.value as "team-a" | "team-b")}>
-            <option value="team-a">Red</option>
-            <option value="team-b">Blue</option>
-          </select>
-          <button type="submit" className="chip-button chip-button-hover">
-            <Plus className="h-4 w-4 mr-2" /> Add Team
-          </button>
+        <form onSubmit={createTeam} className="space-y-3">
+          <div className="flex flex-wrap gap-2 items-center">
+            <input
+              className="ts-input flex-1 min-w-[220px]"
+              placeholder="Team name (e.g. Port of Spade)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <button type="submit" className="chip-button chip-button-hover">
+              <Plus className="h-4 w-4 mr-2" /> Add Team
+            </button>
+          </div>
+          {/* Color swatch picker */}
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-foreground/50 mb-1.5">Team Colour</div>
+            <div className="flex flex-wrap gap-2">
+              {TEAM_COLORS.map((tc) => {
+                const taken = teams.some((t) => t.color === tc.value);
+                if (taken) return null;
+                const selected = color === tc.value;
+                return (
+                  <button
+                    key={tc.value}
+                    type="button"
+                    title={tc.label}
+                    onClick={() => setColor(tc.value)}
+                    className="w-8 h-8 rounded-full transition-all"
+                    style={{
+                      background: tc.css,
+                      outline: selected ? `3px solid white` : "3px solid transparent",
+                      outlineOffset: "2px",
+                      boxShadow: selected ? `0 0 10px ${tc.css}` : "none",
+                      opacity: 1,
+                    }}
+                  />
+                );
+              })}
+            </div>
+            {color && (
+              <div className="mt-1.5 text-xs text-foreground/60">
+                Selected: <span style={{ color: TEAM_COLORS.find((c) => c.value === color)?.css }}>{TEAM_COLORS.find((c) => c.value === color)?.label}</span>
+              </div>
+            )}
+          </div>
         </form>
         {err && <div className="mt-2 text-xs text-red-300 bg-red-950/40 rounded-md p-2">{err}</div>}
       </section>
@@ -125,8 +190,34 @@ function TeamsPage() {
         </div>
       )}
 
+      {teams.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40 pointer-events-none" />
+          <input
+            className="ts-input"
+            style={{ paddingLeft: "2.25rem", paddingRight: teamSearch ? "2.25rem" : undefined }}
+            placeholder="Search teams…"
+            value={teamSearch}
+            onChange={(e) => setTeamSearch(e.target.value)}
+          />
+          {teamSearch && (
+            <button
+              type="button"
+              onClick={() => setTeamSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition"
+              title="Clear"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="grid md:grid-cols-2 gap-4">
-        {teams.map((t) => {
+        {filteredTeams.length === 0 && teams.length > 0 && (
+          <div className="col-span-full text-center text-sm text-foreground/50 py-4">No teams match.</div>
+        )}
+        {filteredTeams.map((t) => {
           const roster = members.filter((m) => m.team_id === t.id);
           return (
             <div
@@ -180,6 +271,11 @@ function TeamsPage() {
                   </option>
                 ))}
               </select>
+              {roster.length > 0 && (
+                <div className="text-[10px] text-foreground/40 text-center pt-1">
+                  {roster.length} member{roster.length === 1 ? "" : "s"} · up to 2 can sit at any one table
+                </div>
+              )}
             </div>
           );
         })}

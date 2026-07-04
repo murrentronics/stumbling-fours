@@ -3,11 +3,38 @@ import { supabase } from "./supabase";
 
 export type Role = "admin" | "player";
 
+export type TeamColor =
+  | "team-a"   | "team-b"   | "team-c"   | "team-d"
+  | "team-e"   | "team-f"   | "team-g"   | "team-h"
+  | "team-i"   | "team-j"   | "team-k"
+  | "team-m"   | "team-n"   | "team-o"   | "team-p"
+  | "team-q"   | "team-r";
+
+export const TEAM_COLORS: { value: TeamColor; label: string; css: string }[] = [
+  { value: "team-a", label: "Crimson",      css: "oklch(0.62 0.22 25)" },
+  { value: "team-b", label: "Royal Blue",   css: "oklch(0.55 0.18 250)" },
+  { value: "team-c", label: "Emerald",      css: "oklch(0.62 0.18 160)" },
+  { value: "team-d", label: "Gold",         css: "oklch(0.78 0.18 88)" },
+  { value: "team-e", label: "Purple",       css: "oklch(0.55 0.22 300)" },
+  { value: "team-f", label: "Orange",       css: "oklch(0.68 0.20 50)" },
+  { value: "team-g", label: "Teal",         css: "oklch(0.60 0.16 195)" },
+  { value: "team-h", label: "Rose",         css: "oklch(0.65 0.20 355)" },
+  { value: "team-i", label: "Lime",         css: "oklch(0.72 0.18 130)" },
+  { value: "team-j", label: "Sky",          css: "oklch(0.68 0.16 220)" },
+  { value: "team-k", label: "Amber",        css: "oklch(0.74 0.18 70)" },
+  { value: "team-m", label: "Coral",        css: "oklch(0.66 0.20 35)" },
+  { value: "team-n", label: "Mint",         css: "oklch(0.72 0.14 170)" },
+  { value: "team-o", label: "Magenta",      css: "oklch(0.60 0.24 330)" },
+  { value: "team-p", label: "Slate",        css: "oklch(0.62 0.08 230)" },
+  { value: "team-q", label: "Copper",       css: "oklch(0.64 0.16 55)" },
+  { value: "team-r", label: "Violet",       css: "oklch(0.58 0.22 285)" },
+];
+
 export type Team = {
   id: string;
   name: string;
   players: { email: string; name: string }[];
-  color: "team-a" | "team-b";
+  color: TeamColor;
 };
 
 export type RoundEntry = {
@@ -35,6 +62,7 @@ export type Match = {
   scoreB: number;
   status: "live" | "pending" | "completed";
   winnerId?: string;
+  disqualifiedTeamId?: string; // set when match ended by DQ
   round: number;
   startedAt: number;
 };

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Spade, Shield, User, LogOut } from "lucide-react";
+import { Shield, User, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import logoSrc from "@/assets/logo.png";
 
 export function TopNav() {
   const { profile, isAdmin, signOut, user } = useAuth();
@@ -9,9 +10,9 @@ export function TopNav() {
   return (
     <header className="px-5 sm:px-8 pt-6 pb-4 flex flex-wrap items-center justify-between gap-4">
       <Link to="/" className="flex items-center gap-3 group">
-        <div className="h-11 w-11 rounded-full grid place-items-center"
-             style={{ background: "var(--gradient-gold)", boxShadow: "var(--shadow-gold)" }}>
-          <Spade className="h-6 w-6" style={{ color: "oklch(0.18 0.05 150)" }} />
+        <div className="rounded-full overflow-hidden flex-shrink-0"
+             style={{ width: 88, height: 88, boxShadow: "var(--shadow-gold)" }}>
+          <img src={logoSrc} alt="Stumbling Fours" className="w-full h-full object-cover" />
         </div>
         <div className="leading-none">
           <div className="font-display font-black text-2xl sm:text-3xl gold-text tracking-wider">

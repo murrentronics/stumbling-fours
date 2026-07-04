@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { Spade, Mail, Lock, User as UserIcon, LogIn, UserPlus, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { type TeamColor } from "@/lib/store";
 
-type RosterTeam = { id: string; name: string; color: "team-a" | "team-b" };
+type RosterTeam = { id: string; name: string; color: TeamColor };
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -31,7 +32,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.from("roster_teams").select("id,name,color").order("name").then(({ data }) => {
-      setRosterTeams((data as RosterTeam[]) ?? []);
+      setRosterTeams(((data as RosterTeam[]) ?? []).filter((t) => t.name !== 'Admin'));
     });
   }, []);
 

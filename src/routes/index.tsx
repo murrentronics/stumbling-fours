@@ -15,6 +15,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   const tournament = useApp((s) => s.tournament);
   const matches = useApp((s) => s.matches);
+  const role = useApp((s) => s.role);
   const live = matches.filter((m) => m.status === "live").length;
 
   return (
@@ -41,10 +42,12 @@ function Home() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link to="/tables" className="chip-button chip-button-hover">Enter the Tables</Link>
-            <Link to="/tournament" className="chip-button chip-button-hover"
-                  style={{ background: "var(--gradient-crimson)", color: "white" }}>
-              Tournament Setup
-            </Link>
+            {role === "admin" && (
+              <Link to="/tournament" className="chip-button chip-button-hover"
+                    style={{ background: "var(--gradient-crimson)", color: "white" }}>
+                Tournament Setup
+              </Link>
+            )}
           </div>
         </div>
       </section>

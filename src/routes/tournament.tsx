@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useApp, type Team, type Match } from "@/lib/store";
+import { useApp, type Team, type Match, type TeamColor } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { Trophy, Plus, Trash2, Lock, Shuffle, Medal, Shield, UserPlus, Play } from "lucide-react";
 
-type RosterTeam = { id: string; name: string; color: "team-a" | "team-b" };
+type RosterTeam = { id: string; name: string; color: TeamColor };
 type RosterMember = { team_id: string; user_id: string; display_name: string; email: string | null };
 
 export const Route = createFileRoute("/tournament")({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/tournament")({
 type SlotTeam = {
   slotId: string;
   rosterTeamId: string; // "" = unselected
-  color: "team-a" | "team-b";
+  color: TeamColor;
   playerUserIds: string[]; // selected members, length = playersPerTeam
 };
 
@@ -46,12 +46,14 @@ function TournamentPage() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: t }, { data: m }] = await Promise.all([
+      const [{ data: t }, { data: m }, { data: adminRoles }] = await Promise.all([
         supabase.from("roster_teams").select("id,name,color").order("name"),
         supabase.from("roster_team_members").select("team_id,user_id,display_name,email"),
+        supabase.from("user_roles").select("user_id").eq("role", "admin"),
       ]);
-      setRosterTeams((t as RosterTeam[]) ?? []);
-      setRosterMembers((m as RosterMember[]) ?? []);
+      const adminIds = new Set((adminRoles ?? []).map((r: { user_id: string }) => r.user_id));
+      setRosterTeams(((t as RosterTeam[]) ?? []).filter((team) => team.name !== 'Admin'));
+      setRosterMembers(((m as RosterMember[]) ?? []).filter((mm) => !adminIds.has(mm.user_id)));
     };
     void load();
     const ch = supabase
@@ -63,6 +65,17 @@ function TournamentPage() {
   }, []);
 
   const canEdit = isAdmin;
+
+  // Keep playerUserIds arrays in sync when playersPerTeam changes
+  useEffect(() => {
+    setSlots((prev) =>
+      prev.map((s) => {
+        if (s.playerUserIds.length === pp) return s;
+        const next = Array(pp).fill("").map((_, i) => s.playerUserIds[i] ?? "");
+        return { ...s, playerUserIds: next };
+      })
+    );
+  }, [pp]);
 
   const addSlot = () => {
     const base = slots.length;
@@ -139,12 +152,18 @@ function TournamentPage() {
 
   const teamsPreview = useMemo(buildTeams, [slots, rosterTeams, rosterMembers]);
   const bracket = generateBracket(teamsPreview);
-  const validSlots = slots.filter((s) => s.rosterTeamId && s.playerUserIds.every(Boolean));
+  const validSlots = slots.filter(
+    (s) => s.rosterTeamId && s.playerUserIds.slice(0, pp).every(Boolean)
+  );
   const canStart = canEdit && validSlots.length >= 2 && validSlots.length % 2 === 0;
 
-  // team ids already used by other slots
-  const usedTeamIds = (excludeSlot: string) =>
-    new Set(slots.filter((s) => s.slotId !== excludeSlot && s.rosterTeamId).map((s) => s.rosterTeamId));
+  // player user ids already assigned in OTHER slots (globally unique per player)
+  const usedPlayerIdsExcluding = (excludeSlot: string) =>
+    new Set(
+      slots
+        .filter((s) => s.slotId !== excludeSlot)
+        .flatMap((s) => s.playerUserIds.filter(Boolean))
+    );
 
   return (
     <div className="pt-2 space-y-6">
@@ -182,9 +201,31 @@ function TournamentPage() {
         <Field label="Tournament Name">
           <input className="ts-input" value={name} disabled={!canEdit} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Players per Team">
-          <input type="number" min={1} max={6} className="ts-input" value={pp} disabled={!canEdit}
-                 onChange={(e) => setPp(Math.max(1, +e.target.value))} />
+        <Field label="Players per Team (at each table)">
+          <div className="flex gap-2">
+            {[1, 2].map((n) => (
+              <button
+                key={n}
+                type="button"
+                disabled={!canEdit}
+                onClick={() => setPp(n)}
+                className="flex-1 py-2.5 rounded-lg border-2 font-display font-black text-lg transition"
+                style={{
+                  borderColor: pp === n ? "oklch(0.83 0.16 88)" : "oklch(0.83 0.16 88 / 25%)",
+                  background: pp === n ? "var(--gradient-gold)" : "oklch(0.16 0.04 150)",
+                  color: pp === n ? "oklch(0.18 0.05 150)" : "var(--color-foreground)",
+                  boxShadow: pp === n ? "0 0 12px oklch(0.83 0.16 88 / 40%)" : "none",
+                  opacity: !canEdit ? 0.7 : 1,
+                  cursor: !canEdit ? "not-allowed" : "pointer",
+                }}
+              >
+                {n} {n === 1 ? "Player" : "Players (Partners)"}
+              </button>
+            ))}
+          </div>
+          <div className="text-[10px] text-foreground/45 mt-1.5">
+            {pp === 1 ? "1-on-1 — one player per team sits at each table." : "2-on-2 — two partners from each team sit together."}
+          </div>
         </Field>
         <Field label="Games per Round">
           <input type="number" min={1} max={9} className="ts-input" value={gpr} disabled={!canEdit}
@@ -230,34 +271,41 @@ function TournamentPage() {
 
         <div className="grid md:grid-cols-2 gap-4">
           {slots.map((s) => {
-            const usedIds = usedTeamIds(s.slotId);
             const roster = rosterMembers.filter((m) => m.team_id === s.rosterTeamId);
-            const usedPlayers = new Set(s.playerUserIds.filter(Boolean));
+            // players already used in this slot
+            const usedInSlot = new Set(s.playerUserIds.filter(Boolean));
+            // players already used in OTHER slots (can't double-book a player)
+            const usedElsewhere = usedPlayerIdsExcluding(s.slotId);
             return (
               <div key={s.slotId} className="rounded-xl p-4 border-2"
                    style={{ borderColor: `var(--${s.color})`, background: "oklch(0.18 0.05 150 / 80%)" }}>
                 <div className="flex items-center gap-2 mb-3">
+                  <div
+                    className="w-8 h-8 rounded-md flex-shrink-0 border-2"
+                    style={{
+                      background: s.rosterTeamId ? `var(--${s.color})` : "oklch(0.3 0 0)",
+                      borderColor: s.rosterTeamId ? `var(--${s.color})` : "oklch(0.4 0 0)",
+                    }}
+                  />
                   <select
                     className="ts-input flex-1 font-display font-bold"
                     value={s.rosterTeamId}
                     disabled={!canEdit}
-                    onChange={(e) => updateSlot(s.slotId, { rosterTeamId: e.target.value, playerUserIds: Array(pp).fill("") })}
+                    onChange={(e) => {
+                      const chosen = rosterTeams.find((rt) => rt.id === e.target.value);
+                      updateSlot(s.slotId, {
+                        rosterTeamId: e.target.value,
+                        color: chosen?.color ?? s.color,
+                        playerUserIds: Array(pp).fill(""),
+                      });
+                    }}
                   >
                     <option value="">— Select Team —</option>
                     {rosterTeams.map((rt) => (
-                      <option key={rt.id} value={rt.id} disabled={usedIds.has(rt.id)}>
+                      <option key={rt.id} value={rt.id}>
                         {rt.name}
                       </option>
                     ))}
-                  </select>
-                  <select
-                    className="ts-input w-28"
-                    value={s.color}
-                    disabled={!canEdit}
-                    onChange={(e) => updateSlot(s.slotId, { color: e.target.value as "team-a" | "team-b" })}
-                  >
-                    <option value="team-a">Red</option>
-                    <option value="team-b">Blue</option>
                   </select>
                   {canEdit && (
                     <button onClick={() => removeSlot(s.slotId)} className="p-2 rounded-md hover:bg-white/5">
@@ -289,7 +337,12 @@ function TournamentPage() {
                           <option
                             key={m.user_id}
                             value={m.user_id}
-                            disabled={usedPlayers.has(m.user_id) && m.user_id !== selected}
+                            disabled={
+                              // already picked in this slot (different position)
+                              (usedInSlot.has(m.user_id) && m.user_id !== selected) ||
+                              // already assigned to another slot entirely
+                              usedElsewhere.has(m.user_id)
+                            }
                           >
                             {m.display_name}{m.email ? ` (${m.email})` : ""}
                           </option>
@@ -329,9 +382,9 @@ function TournamentPage() {
                   {round.map((pair, pi) => (
                     <div key={pi} className="rounded-lg p-3 border"
                          style={{ background: "oklch(0.20 0.06 150)", borderColor: "oklch(0.83 0.16 88 / 30%)" }}>
-                      <div className="text-sm font-bold" style={{ color: "var(--team-a)" }}>{pair[0]?.name ?? "TBD"}</div>
+                      <div className="text-sm font-bold" style={{ color: pair[0] ? `var(--${pair[0].color})` : "var(--foreground)" }}>{pair[0]?.name ?? "TBD"}</div>
                       <div className="text-[10px] text-foreground/40 my-1 tracking-widest">VS</div>
-                      <div className="text-sm font-bold" style={{ color: "var(--team-b)" }}>{pair[1]?.name ?? "TBD"}</div>
+                      <div className="text-sm font-bold" style={{ color: pair[1] ? `var(--${pair[1].color})` : "var(--foreground)" }}>{pair[1]?.name ?? "TBD"}</div>
                     </div>
                   ))}
                 </div>

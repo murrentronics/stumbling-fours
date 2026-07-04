@@ -6,6 +6,7 @@ import { Crown, Spade, Heart, Diamond, Club } from "lucide-react";
 
 export function LiveTable({ match }: { match: Match }) {
   const currentUserEmail = useApp((s) => s.currentUserEmail);
+  const role = useApp((s) => s.role);
   const addEntry = useApp((s) => s.addEntry);
   const updateMatch = useApp((s) => s.updateMatch);
   const triggerHangJack = useApp((s) => s.triggerHangJack);
@@ -18,10 +19,11 @@ export function LiveTable({ match }: { match: Match }) {
 
   // which team does current user belong to (for player view)
   const myTeam = useMemo<Team | null>(() => {
-    if ([match.teamA, match.teamB].some((t) => t.players.some((p) => p.email === currentUserEmail))) {
-      if (match.teamA.players.some((p) => p.email === currentUserEmail)) return match.teamA;
-      return match.teamB;
-    }
+    const emailLower = currentUserEmail.toLowerCase();
+    const inA = match.teamA.players.some((p) => p.email?.toLowerCase() === emailLower);
+    const inB = match.teamB.players.some((p) => p.email?.toLowerCase() === emailLower);
+    if (inA) return match.teamA;
+    if (inB) return match.teamB;
     return null;
   }, [match, currentUserEmail]);
 
@@ -58,21 +60,21 @@ export function LiveTable({ match }: { match: Match }) {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10
                           flex items-center gap-4 px-5 py-2 rounded-full"
                style={{ background: "oklch(0.10 0.03 150 / 85%)", border: "2px solid oklch(0.83 0.16 88)" }}>
-            <ScoreNum value={match.scoreA} color="team-a" />
+            <ScoreNum value={match.scoreA} color={match.teamA.color} />
             <span className="font-display font-black text-foreground/50">VS</span>
-            <ScoreNum value={match.scoreB} color="team-b" />
+            <ScoreNum value={match.scoreB} color={match.teamB.color} />
           </div>
 
           {/* 4 player seats */}
-          <Seat pos="top-left" player={match.teamA.players[0]} team={match.teamA} />
-          <Seat pos="bottom-right" player={match.teamA.players[1]} team={match.teamA} />
-          <Seat pos="top-right" player={match.teamB.players[0]} team={match.teamB} />
-          <Seat pos="bottom-left" player={match.teamB.players[1]} team={match.teamB} />
+          {match.teamA.players[0] && <Seat pos="top-left" player={match.teamA.players[0]} team={match.teamA} />}
+          {match.teamA.players[1] && <Seat pos="bottom-right" player={match.teamA.players[1]} team={match.teamA} />}
+          {match.teamB.players[0] && <Seat pos="top-right" player={match.teamB.players[0]} team={match.teamB} />}
+          {match.teamB.players[1] && <Seat pos="bottom-left" player={match.teamB.players[1]} team={match.teamB} />}
         </div>
 
-        {/* score entry — only the team's own players can submit; everyone else spectates */}
+        {/* score entry — players see their own team; admins see both */}
         <div className="mt-6 grid md:grid-cols-2 gap-4">
-          {myTeam?.id === match.teamA.id && (
+          {(role === "admin" || myTeam?.id === match.teamA.id) && (
             <ScoreEntry
               match={match}
               team={match.teamA}
@@ -89,7 +91,7 @@ export function LiveTable({ match }: { match: Match }) {
               }}
             />
           )}
-          {myTeam?.id === match.teamB.id && (
+          {(role === "admin" || myTeam?.id === match.teamB.id) && (
             <ScoreEntry
               match={match}
               team={match.teamB}
@@ -106,6 +108,11 @@ export function LiveTable({ match }: { match: Match }) {
               }}
             />
           )}
+          {role !== "admin" && !myTeam && (
+            <div className="md:col-span-2 text-center text-sm text-foreground/50 italic py-4">
+              You are spectating this table.
+            </div>
+          )}
         </div>
 
         {/* recent entries */}
@@ -118,7 +125,7 @@ export function LiveTable({ match }: { match: Match }) {
             {entries.map((e) => (
               <div key={e.id} className="rounded-md px-3 py-1.5 text-xs flex items-center gap-2"
                    style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
-                <span className="font-bold" style={{ color: e.teamId === match.teamA.id ? "var(--team-a)" : "var(--team-b)" }}>
+                <span className="font-bold" style={{ color: `var(--${e.teamId === match.teamA.id ? match.teamA.color : match.teamB.color})` }}>
                   {e.teamName}
                 </span>
                 <span className="text-foreground/70">+{e.total}</span>
@@ -135,7 +142,7 @@ export function LiveTable({ match }: { match: Match }) {
   );
 }
 
-function ScoreNum({ value, color }: { value: number; color: "team-a" | "team-b" }) {
+function ScoreNum({ value, color }: { value: number; color: string }) {
   return (
     <motion.div
       key={value}
@@ -180,7 +187,7 @@ function Seat({
     "bottom-left": "bottom-2 left-2 sm:bottom-4 sm:left-8",
     "bottom-right": "bottom-2 right-2 sm:bottom-4 sm:right-8",
   } as const;
-  const Icon = SeatIcons[Math.abs(player.email.length) % 4];
+  const Icon = SeatIcons[Math.abs((player.email ?? "").length) % 4];
   return (
     <div className={`absolute ${positions[pos]} flex items-center gap-2`}>
       <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full grid place-items-center border-2"
