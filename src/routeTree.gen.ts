@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TournamentRouteImport } from './routes/tournament'
+import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as TablesRouteImport } from './routes/tables'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TournamentRoute = TournamentRouteImport.update({
   id: '/tournament',
   path: '/tournament',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamsRoute = TeamsRouteImport.update({
+  id: '/teams',
+  path: '/teams',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TablesRoute = TablesRouteImport.update({
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/tables': typeof TablesRoute
+  '/teams': typeof TeamsRoute
   '/tournament': typeof TournamentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/tables': typeof TablesRoute
+  '/teams': typeof TeamsRoute
   '/tournament': typeof TournamentRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/tables': typeof TablesRoute
+  '/teams': typeof TeamsRoute
   '/tournament': typeof TournamentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/tables' | '/tournament'
+  fullPaths: '/' | '/auth' | '/tables' | '/teams' | '/tournament'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/tables' | '/tournament'
-  id: '__root__' | '/' | '/auth' | '/tables' | '/tournament'
+  to: '/' | '/auth' | '/tables' | '/teams' | '/tournament'
+  id: '__root__' | '/' | '/auth' | '/tables' | '/teams' | '/tournament'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   TablesRoute: typeof TablesRoute
+  TeamsRoute: typeof TeamsRoute
   TournamentRoute: typeof TournamentRoute
 }
 
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/tournament'
       fullPath: '/tournament'
       preLoaderRoute: typeof TournamentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teams': {
+      id: '/teams'
+      path: '/teams'
+      fullPath: '/teams'
+      preLoaderRoute: typeof TeamsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tables': {
@@ -106,18 +123,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   TablesRoute: TablesRoute,
+  TeamsRoute: TeamsRoute,
   TournamentRoute: TournamentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

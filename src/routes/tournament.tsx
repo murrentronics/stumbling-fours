@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp, type Team, type Match } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { Trophy, Plus, Trash2, Lock, Shuffle, Medal, Shield, UserPlus, Play } from "lucide-react";
 
-type Member = { id: string; email: string; display_name: string | null };
+type RosterTeam = { id: string; name: string; color: "team-a" | "team-b" };
+type RosterMember = { team_id: string; user_id: string; display_name: string; email: string | null };
 
 export const Route = createFileRoute("/tournament")({
   head: () => ({
@@ -16,6 +17,13 @@ export const Route = createFileRoute("/tournament")({
   }),
   component: TournamentPage,
 });
+
+type SlotTeam = {
+  slotId: string;
+  rosterTeamId: string; // "" = unselected
+  color: "team-a" | "team-b";
+  playerUserIds: string[]; // selected members, length = playersPerTeam
+};
 
 function TournamentPage() {
   const { isAdmin } = useAuth();
@@ -31,40 +39,65 @@ function TournamentPage() {
   const [first, setFirst] = useState(tournament?.prizes.first ?? "Trophy + $1000");
   const [second, setSecond] = useState(tournament?.prizes.second ?? "$400");
   const [third, setThird] = useState(tournament?.prizes.third ?? "$200");
-  const [teams, setTeams] = useState<Team[]>(tournament?.teams ?? []);
-  const [members, setMembers] = useState<Member[]>([]);
+
+  const [rosterTeams, setRosterTeams] = useState<RosterTeam[]>([]);
+  const [rosterMembers, setRosterMembers] = useState<RosterMember[]>([]);
+  const [slots, setSlots] = useState<SlotTeam[]>([]);
 
   useEffect(() => {
-    supabase
-      .from("profiles")
-      .select("id,email,display_name")
-      .order("display_name")
-      .then(({ data }) => setMembers((data as Member[]) ?? []));
+    const load = async () => {
+      const [{ data: t }, { data: m }] = await Promise.all([
+        supabase.from("roster_teams").select("id,name,color").order("name"),
+        supabase.from("roster_team_members").select("team_id,user_id,display_name,email"),
+      ]);
+      setRosterTeams((t as RosterTeam[]) ?? []);
+      setRosterMembers((m as RosterMember[]) ?? []);
+    };
+    void load();
+    const ch = supabase
+      .channel("tournament_roster_rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "roster_teams" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "roster_team_members" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const canEdit = isAdmin;
 
-  const addTeam = () => {
-    const base = teams.length;
-    const makeTeam = (idx: number, color: "team-a" | "team-b"): Team => ({
-      id: `t-${Date.now()}-${idx}`,
-      name: "",
-      color,
-      players: Array.from({ length: pp }, () => ({ email: "", name: "" })),
-    });
-    setTeams([
-      ...teams,
-      makeTeam(base + 1, "team-a"),
-      makeTeam(base + 2, "team-b"),
+  const addSlot = () => {
+    const base = slots.length;
+    setSlots([
+      ...slots,
+      { slotId: `s-${Date.now()}-${base + 1}`, rosterTeamId: "", color: "team-a", playerUserIds: Array(pp).fill("") },
+      { slotId: `s-${Date.now()}-${base + 2}`, rosterTeamId: "", color: "team-b", playerUserIds: Array(pp).fill("") },
     ]);
   };
 
-  const updateTeam = (id: string, patch: Partial<Team>) =>
-    setTeams(teams.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const updateSlot = (id: string, patch: Partial<SlotTeam>) =>
+    setSlots(slots.map((s) => (s.slotId === id ? { ...s, ...patch } : s)));
 
-  const removeTeam = (id: string) => setTeams(teams.filter((t) => t.id !== id));
+  const removeSlot = (id: string) => setSlots(slots.filter((s) => s.slotId !== id));
+
+  const buildTeams = (): Team[] => {
+    return slots
+      .filter((s) => s.rosterTeamId)
+      .map((s): Team => {
+        const rt = rosterTeams.find((r) => r.id === s.rosterTeamId);
+        const players = s.playerUserIds.map((uid) => {
+          const m = rosterMembers.find((mm) => mm.user_id === uid && mm.team_id === s.rosterTeamId);
+          return { email: m?.email ?? "", name: m?.display_name ?? "" };
+        });
+        return {
+          id: s.slotId,
+          name: rt?.name ?? "Team",
+          color: s.color,
+          players,
+        };
+      });
+  };
 
   const lock = () => {
+    const teams = buildTeams();
     setTournament({
       id: tournament?.id ?? `trn-${Date.now()}`,
       name, playersPerTeam: pp, gamesPerRound: gpr,
@@ -75,7 +108,14 @@ function TournamentPage() {
   };
 
   const startRound = () => {
-    lock();
+    const teams = buildTeams();
+    setTournament({
+      id: tournament?.id ?? `trn-${Date.now()}`,
+      name, playersPerTeam: pp, gamesPerRound: gpr,
+      prizes: { first, second, third },
+      teams,
+      createdAt: tournament?.createdAt ?? Date.now(),
+    });
     const shuffled = shuffle(teams);
     const newMatches: Match[] = [];
     for (let i = 0; i < shuffled.length - 1; i += 2) {
@@ -92,14 +132,19 @@ function TournamentPage() {
         startedAt: Date.now(),
       });
     }
-    // keep completed/past matches, replace live/pending
     const past = existingMatches.filter((m) => m.status === "completed");
     setMatches([...newMatches, ...past]);
     navigate({ to: "/tables" });
   };
 
-  const bracket = generateBracket(teams);
-  const canStart = canEdit && teams.length >= 2 && teams.length % 2 === 0;
+  const teamsPreview = useMemo(buildTeams, [slots, rosterTeams, rosterMembers]);
+  const bracket = generateBracket(teamsPreview);
+  const validSlots = slots.filter((s) => s.rosterTeamId && s.playerUserIds.every(Boolean));
+  const canStart = canEdit && validSlots.length >= 2 && validSlots.length % 2 === 0;
+
+  // team ids already used by other slots
+  const usedTeamIds = (excludeSlot: string) =>
+    new Set(slots.filter((s) => s.slotId !== excludeSlot && s.rosterTeamId).map((s) => s.rosterTeamId));
 
   return (
     <div className="pt-2 space-y-6">
@@ -109,7 +154,7 @@ function TournamentPage() {
             <Trophy className="h-8 w-8" /> Tournament
           </h1>
           <p className="text-foreground/65 text-sm">
-            {canEdit ? "Set the rules, lock in your teams, and let the bracket fly." : "Read-only — sign in as Admin to edit."}
+            {canEdit ? "Pick your standing teams, lock in the roster, and let the bracket fly." : "Read-only — sign in as Admin to edit."}
           </p>
         </div>
         {canEdit && (
@@ -120,7 +165,7 @@ function TournamentPage() {
             <button
               onClick={startRound}
               disabled={!canStart}
-              title={canStart ? "" : "Need an even number of teams (2+)"}
+              title={canStart ? "" : "Need an even number of fully-filled teams (2+)"}
               className="chip-button chip-button-hover disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: "var(--gradient-crimson)", color: "white" }}
             >
@@ -166,100 +211,110 @@ function TournamentPage() {
       {/* Teams */}
       <section className="ornate-border p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display font-black text-2xl gold-text">Teams</h2>
+          <h2 className="font-display font-black text-2xl gold-text">Teams in this Tournament</h2>
           {canEdit && (
-            <button onClick={addTeam} className="chip-button chip-button-hover text-xs">
-              <Plus className="h-4 w-4 mr-1" /> Add Team
+            <button onClick={addSlot} className="chip-button chip-button-hover text-xs">
+              <Plus className="h-4 w-4 mr-1" /> Add Team Pair
             </button>
           )}
         </div>
 
-        {teams.length === 0 && (
-          <div className="text-sm text-foreground/60 italic">No teams yet — add the first one.</div>
+        {rosterTeams.length === 0 && (
+          <div className="text-sm text-foreground/60 italic mb-4">
+            No standing teams yet — head to <span className="gold-text font-bold">Teams</span> to create some.
+          </div>
+        )}
+        {slots.length === 0 && rosterTeams.length > 0 && (
+          <div className="text-sm text-foreground/60 italic">No teams added yet — click "Add Team Pair".</div>
         )}
 
         <div className="grid md:grid-cols-2 gap-4">
-          {teams.map((t) => (
-            <div key={t.id} className="rounded-xl p-4 border-2"
-                 style={{ borderColor: `var(--${t.color})`, background: "oklch(0.18 0.05 150 / 80%)" }}>
-              <div className="flex items-center gap-3 mb-3">
-                <input
-                  className="ts-input flex-1 font-display font-bold"
-                  value={t.name}
-                  placeholder={`Enter team name (${t.color === "team-a" ? "Red" : "Blue"})`}
-                  disabled={!canEdit}
-                  onChange={(e) => updateTeam(t.id, { name: e.target.value })}
-                />
-                <select
-                  className="ts-input w-28"
-                  value={t.color}
-                  disabled={!canEdit}
-                  onChange={(e) => updateTeam(t.id, { color: e.target.value as "team-a" | "team-b" })}
-                >
-                  <option value="team-a">Red</option>
-                  <option value="team-b">Blue</option>
-                </select>
-                {canEdit && (
-                  <button onClick={() => removeTeam(t.id)} className="p-2 rounded-md hover:bg-white/5">
-                    <Trash2 className="h-4 w-4 text-foreground/60" />
-                  </button>
-                )}
-              </div>
+          {slots.map((s) => {
+            const usedIds = usedTeamIds(s.slotId);
+            const roster = rosterMembers.filter((m) => m.team_id === s.rosterTeamId);
+            const usedPlayers = new Set(s.playerUserIds.filter(Boolean));
+            return (
+              <div key={s.slotId} className="rounded-xl p-4 border-2"
+                   style={{ borderColor: `var(--${s.color})`, background: "oklch(0.18 0.05 150 / 80%)" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <select
+                    className="ts-input flex-1 font-display font-bold"
+                    value={s.rosterTeamId}
+                    disabled={!canEdit}
+                    onChange={(e) => updateSlot(s.slotId, { rosterTeamId: e.target.value, playerUserIds: Array(pp).fill("") })}
+                  >
+                    <option value="">— Select Team —</option>
+                    {rosterTeams.map((rt) => (
+                      <option key={rt.id} value={rt.id} disabled={usedIds.has(rt.id)}>
+                        {rt.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="ts-input w-28"
+                    value={s.color}
+                    disabled={!canEdit}
+                    onChange={(e) => updateSlot(s.slotId, { color: e.target.value as "team-a" | "team-b" })}
+                  >
+                    <option value="team-a">Red</option>
+                    <option value="team-b">Blue</option>
+                  </select>
+                  {canEdit && (
+                    <button onClick={() => removeSlot(s.slotId)} className="p-2 rounded-md hover:bg-white/5">
+                      <Trash2 className="h-4 w-4 text-foreground/60" />
+                    </button>
+                  )}
+                </div>
 
-              <div className="space-y-2">
-                {Array.from({ length: pp }).map((_, i) => {
-                  const p = t.players[i] ?? { email: "", name: "" };
-                  // Emails already used elsewhere on any team (so we don't reassign)
-                  const used = new Set(
-                    teams.flatMap((tt) =>
-                      tt.players
-                        .map((pl, idx) => (tt.id === t.id && idx === i ? "" : pl.email))
-                        .filter(Boolean),
-                    ),
-                  );
-                  return (
-                    <div key={i}>
+                <div className="space-y-2">
+                  {Array.from({ length: pp }).map((_, i) => {
+                    const selected = s.playerUserIds[i] ?? "";
+                    const disabled = !canEdit || !s.rosterTeamId;
+                    return (
                       <select
+                        key={i}
                         className="ts-input"
-                        value={p.email}
-                        disabled={!canEdit}
+                        value={selected}
+                        disabled={disabled}
                         onChange={(e) => {
-                          const email = e.target.value;
-                          const m = members.find((mm) => mm.email === email);
-                          const players = [...t.players];
-                          players[i] = {
-                            email,
-                            name: m?.display_name || (email ? email.split("@")[0] : ""),
-                          };
-                          updateTeam(t.id, { players });
+                          const next = [...s.playerUserIds];
+                          next[i] = e.target.value;
+                          updateSlot(s.slotId, { playerUserIds: next });
                         }}
                       >
-                        <option value="">— Select Player {i + 1} —</option>
-                        {members.map((m) => (
+                        <option value="">
+                          {s.rosterTeamId ? `— Select Player ${i + 1} —` : "Select a team first"}
+                        </option>
+                        {roster.map((m) => (
                           <option
-                            key={m.id}
-                            value={m.email}
-                            disabled={used.has(m.email)}
+                            key={m.user_id}
+                            value={m.user_id}
+                            disabled={usedPlayers.has(m.user_id) && m.user_id !== selected}
                           >
-                            {(m.display_name || m.email.split("@")[0]) + ` (${m.email})`}
+                            {m.display_name}{m.email ? ` (${m.email})` : ""}
                           </option>
                         ))}
                       </select>
+                    );
+                  })}
+                  {s.rosterTeamId && roster.length === 0 && (
+                    <div className="text-[11px] italic text-foreground/50">
+                      No members assigned to this team yet.
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       {/* Bracket preview */}
-      {teams.length >= 2 && (
+      {teamsPreview.length >= 2 && (
         <section className="ornate-border p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display font-black text-2xl gold-text">Bracket Preview</h2>
-            <button onClick={() => setTeams(shuffle(teams))} className="chip-button chip-button-hover text-xs"
+            <button onClick={() => setSlots(shuffle(slots))} className="chip-button chip-button-hover text-xs"
                     style={{ background: "var(--gradient-crimson)", color: "white" }}>
               <Shuffle className="h-4 w-4 mr-1" /> Re-shuffle
             </button>
@@ -286,7 +341,6 @@ function TournamentPage() {
         </section>
       )}
 
-      {/* small style block for inputs */}
       <style>{`
         .ts-input {
           background: oklch(0.16 0.04 150);
@@ -383,11 +437,9 @@ function shuffle<T>(arr: T[]) {
 
 function generateBracket(teams: Team[]): (Team | undefined)[][][] {
   if (teams.length < 2) return [];
-  // pad to next power of 2
   const size = 1 << Math.ceil(Math.log2(teams.length));
   const padded: (Team | undefined)[] = [...teams];
   while (padded.length < size) padded.push(undefined);
-
   const rounds: (Team | undefined)[][][] = [];
   let current = padded;
   while (current.length > 1) {
