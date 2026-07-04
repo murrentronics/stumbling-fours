@@ -12,15 +12,9 @@ const config: CapacitorConfig = {
       backgroundColor: "#0a0a0a",
     },
     Browser: {},
-    Keyboard: {
-      resize: "body",
-      style: "dark",
-      resizeOnFullScreen: true,
-    },
   },
   android: {
     backgroundColor: "#0a0a0a",
-    captureInput: true,
     webContentsDebuggingEnabled: false,
   },
 };
