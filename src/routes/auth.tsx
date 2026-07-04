@@ -1,3 +1,4 @@
+import React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Mail, Lock, User as UserIcon, LogIn, UserPlus, Users } from "lucide-react";
@@ -208,27 +209,24 @@ function AuthPage() {
   );
 }
 
-function IconInput({
-  icon,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-  required,
-}: {
-  icon: React.ReactNode;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  type?: string;
-  required?: boolean;
-}) {
+const IconInput = React.forwardRef<
+  HTMLInputElement,
+  {
+    icon: React.ReactNode;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder: string;
+    type?: string;
+    required?: boolean;
+  }
+>(function IconInput({ icon, value, onChange, placeholder, type = "text", required }, ref) {
   return (
     <div className="relative">
       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/45">{icon}</div>
       <input
+        ref={ref}
         type={type}
-        inputMode={type === "email" ? "email" : type === "password" ? "text" : "text"}
+        inputMode={type === "email" ? "email" : "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -236,8 +234,8 @@ function IconInput({
         autoComplete={
           type === "email" ? "email" : type === "password" ? "current-password" : "off"
         }
-        className="w-full pl-10 pr-3 py-3 rounded-lg text-sm outline-none transition bg-white/10 border border-white/20 text-white placeholder:text-white/40 focus:border-white/50 focus:bg-white/15"
+        className="flex w-full pl-10 pr-3 py-3 rounded-lg text-sm border bg-transparent shadow-sm transition-colors placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-50 border-white/20 text-white"
       />
     </div>
   );
-}
+});
