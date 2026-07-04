@@ -33,6 +33,7 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         <NavLink to="/">Home</NavLink>
         <NavLink to="/tables">Tables</NavLink>
+        {!isAdmin && <NavLink to="/my-games">My Games</NavLink>}
         {isAdmin && <NavLink to="/teams">Teams</NavLink>}
         {isAdmin && <NavLink to="/tournament">Tournament</NavLink>}
       </nav>
