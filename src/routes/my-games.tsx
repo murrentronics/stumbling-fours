@@ -32,6 +32,19 @@ function toISODate(ts: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** Returns whether the current user's team won this match.
+ *  Prefers winnerId when set, falls back to score comparison. */
+function didIWin(match: Match, email: string): boolean {
+  const inA = match.teamA.players.some((p) => p.email?.toLowerCase() === email.toLowerCase());
+  const myScore  = inA ? match.scoreA : match.scoreB;
+  const oppScore = inA ? match.scoreB : match.scoreA;
+  const myTeamId = inA ? match.teamA.id : match.teamB.id;
+  if (match.winnerId) {
+    return match.winnerId === myTeamId;
+  }
+  return myScore > oppScore;
+}
+
 function getMyTeamAndOpponent(match: Match, email: string) {
   const inA = match.teamA.players.some((p) => p.email?.toLowerCase() === email.toLowerCase());
   const myTeam = inA ? match.teamA : match.teamB;
@@ -71,18 +84,12 @@ function MyGamesPage() {
   );
 
   const wins = useMemo(
-    () => completedMatches.filter((m) => {
-      const { myTeam } = getMyTeamAndOpponent(m, email);
-      return m.winnerId === myTeam.id;
-    }),
+    () => completedMatches.filter((m) => didIWin(m, email)),
     [completedMatches, email],
   );
 
   const losses = useMemo(
-    () => completedMatches.filter((m) => {
-      const { myTeam } = getMyTeamAndOpponent(m, email);
-      return m.winnerId !== myTeam.id;
-    }),
+    () => completedMatches.filter((m) => !didIWin(m, email)),
     [completedMatches, email],
   );
 

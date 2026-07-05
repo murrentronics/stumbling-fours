@@ -336,11 +336,18 @@ function UpcomingCard({
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
-  // Tick every second for the countdown
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const scheduledDate = tournament.scheduledDate!;
+    // Don't tick if already past the scheduled time
+    if (scheduledDate <= Date.now()) return;
+    const id = setInterval(() => {
+      const remaining = scheduledDate - Date.now();
+      setNow(Date.now());
+      // Stop ticking once tournament has started
+      if (remaining <= 0) clearInterval(id);
+    }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [tournament.scheduledDate]);
 
   const scheduledDate = tournament.scheduledDate!;
   const diff = scheduledDate - now;
@@ -627,77 +634,97 @@ function TournamentAccordion({
                 {/* ── Collapsed row ── */}
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : m.id)}
-                  className="w-full px-4 py-3.5 text-left transition hover:bg-white/5"
-                  style={isFinal ? { background: "oklch(0.83 0.16 88 / 6%)" } : {}}
+                  className="w-full text-left transition-all active:scale-[0.99]"
+                  style={{
+                    background: isExpanded
+                      ? "oklch(0.22 0.06 150)"
+                      : isFinal
+                        ? "oklch(0.83 0.16 88 / 6%)"
+                        : "oklch(0.18 0.05 150 / 60%)",
+                    borderBottom: isExpanded ? "none" : "1px solid oklch(0.83 0.16 88 / 10%)",
+                  }}
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    {/* Stage badge */}
-                    {isFinal ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex-shrink-0"
-                            style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}>
-                        ★ Final
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/45 flex-shrink-0">
-                        {roundLabel}
-                      </span>
-                    )}
-                    <span className="text-[10px] text-foreground/35 ml-auto flex-shrink-0">
-                      {new Date(m.startedAt).toLocaleDateString("en-TT", { day: "numeric", month: "short" })}
-                      {" · "}{m.tableName}
-                    </span>
-                    {isExpanded
-                      ? <ChevronUp className="h-3.5 w-3.5 text-foreground/40 flex-shrink-0" />
-                      : <ChevronDown className="h-3.5 w-3.5 text-foreground/40 flex-shrink-0" />}
-                  </div>
-
-                  {/* Score line */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full flex-shrink-0"
-                             style={{ background: `var(--${m.teamA.color})` }} />
-                        <span className="font-display font-bold text-sm truncate"
-                              style={{ color: `var(--${m.teamA.color})` }}>
-                          {m.teamA.name}
+                  <div className="px-4 py-3.5">
+                    {/* Top row: stage + date + expand indicator */}
+                    <div className="flex items-center gap-2 mb-2.5">
+                      {isFinal ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex-shrink-0"
+                              style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}>
+                          ★ Final
                         </span>
-                        {m.disqualifiedTeamId === m.teamA.id && (
-                          <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0"
-                                style={{ background: "oklch(0.55 0.22 25 / 25%)", color: "oklch(0.75 0.18 25)" }}>DQ</span>
-                        )}
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
+                              style={{ background: "oklch(0.25 0.06 150)", color: "var(--color-foreground)", opacity: 0.7 }}>
+                          {roundLabel}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-foreground/35 flex-shrink-0">
+                        {new Date(m.startedAt).toLocaleDateString("en-TT", { day: "numeric", month: "short" })}
+                        {" · "}{m.tableName}
+                      </span>
+                      {/* Expand pill — the main affordance */}
+                      <div className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full flex-shrink-0 transition-all"
+                           style={{
+                             background: isExpanded ? "oklch(0.83 0.16 88 / 20%)" : "oklch(0.83 0.16 88 / 10%)",
+                             border: "1px solid oklch(0.83 0.16 88 / 30%)",
+                             color: "oklch(0.83 0.16 88)",
+                           }}>
+                        <span className="text-[9px] font-bold uppercase tracking-wider">
+                          {isExpanded ? "Close" : "Details"}
+                        </span>
+                        {isExpanded
+                          ? <ChevronUp className="h-3 w-3" />
+                          : <ChevronDown className="h-3 w-3" />}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {/* Derive winner by winnerId first, fall back to higher score */}
-                      {(() => {
-                        const winnerIsA = m.winnerId ? m.winnerId === m.teamA.id : m.scoreA > m.scoreB;
-                        return (
-                          <>
-                            <span className="font-display font-black text-xl"
-                                  style={{ color: winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
-                              {m.scoreA}
-                            </span>
-                            <span className="text-foreground/30 text-sm font-bold">vs</span>
-                            <span className="font-display font-black text-xl"
-                                  style={{ color: !winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
-                              {m.scoreB}
-                            </span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                    <div className="flex-1 min-w-0 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {m.disqualifiedTeamId === m.teamB.id && (
-                          <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0"
-                                style={{ background: "oklch(0.55 0.22 25 / 25%)", color: "oklch(0.75 0.18 25)" }}>DQ</span>
-                        )}
-                        <span className="font-display font-bold text-sm truncate"
-                              style={{ color: `var(--${m.teamB.color})` }}>
-                          {m.teamB.name}
-                        </span>
-                        <div className="w-2 h-2 rounded-full flex-shrink-0"
-                             style={{ background: `var(--${m.teamB.color})` }} />
+
+                    {/* Score line */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                               style={{ background: `var(--${m.teamA.color})` }} />
+                          <span className="font-display font-bold text-sm truncate"
+                                style={{ color: `var(--${m.teamA.color})` }}>
+                            {m.teamA.name}
+                          </span>
+                          {m.disqualifiedTeamId === m.teamA.id && (
+                            <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0"
+                                  style={{ background: "oklch(0.55 0.22 25 / 25%)", color: "oklch(0.75 0.18 25)" }}>DQ</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {(() => {
+                          const winnerIsA = m.winnerId ? m.winnerId === m.teamA.id : m.scoreA > m.scoreB;
+                          return (
+                            <>
+                              <span className="font-display font-black text-xl"
+                                    style={{ color: winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
+                                {m.scoreA}
+                              </span>
+                              <span className="text-foreground/30 text-sm font-bold">—</span>
+                              <span className="font-display font-black text-xl"
+                                    style={{ color: !winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
+                                {m.scoreB}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                      <div className="flex-1 min-w-0 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {m.disqualifiedTeamId === m.teamB.id && (
+                            <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0"
+                                  style={{ background: "oklch(0.55 0.22 25 / 25%)", color: "oklch(0.75 0.18 25)" }}>DQ</span>
+                          )}
+                          <span className="font-display font-bold text-sm truncate"
+                                style={{ color: `var(--${m.teamB.color})` }}>
+                            {m.teamB.name}
+                          </span>
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                               style={{ background: `var(--${m.teamB.color})` }} />
+                        </div>
                       </div>
                     </div>
                   </div>

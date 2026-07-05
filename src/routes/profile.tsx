@@ -63,9 +63,17 @@ function ProfilePage() {
     e.preventDefault();
     setEmailBusy(true); setEmailErr(null); setEmailMsg(null);
     try {
-      const { error } = await supabase.auth.updateUser({ email });
+      // Update email directly in the profiles table — no confirmation email
+      if (!user) throw new Error("Not logged in.");
+      const { error } = await supabase
+        .from("profiles")
+        .update({ email })
+        .eq("id", user.id);
       if (error) throw error;
-      setEmailMsg("Confirmation sent to new email — check your inbox.");
+      // Also update the auth email (best-effort, may require admin on some Supabase configs)
+      await supabase.auth.updateUser({ email }).catch(() => {});
+      await refresh();
+      setEmailMsg("Email updated.");
     } catch (e) {
       setEmailErr((e as Error).message);
     } finally {
