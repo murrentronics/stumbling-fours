@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { LiveTable } from "@/components/LiveTable";
-import { Check, X, Clock, History, ArrowLeft, Spade, MoreVertical, Trash2, UserX, Search, ChevronDown, ChevronUp, Trophy, Radio, CalendarDays, type LucideIcon } from "lucide-react";
+import { Check, X, Clock, History, ArrowLeft, Spade, MoreVertical, Trash2, UserX, Search, ChevronDown, ChevronUp, Trophy, Radio, CalendarDays, type LucideIcon, Timer } from "lucide-react";
 
 export const Route = createFileRoute("/tables")({
   head: () => ({
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/tables")({
   component: Tables,
 });
 
-type Tab = "live" | "past" | "history" | "pending";
+type Tab = "live" | "upcoming" | "history" | "pending";
 
 type TabDef = { id: Tab; label: string; icon: LucideIcon };
 
@@ -23,12 +23,12 @@ function Tables() {
   const [tab, setTab] = useState<Tab>("live");
 
   const baseTabs: TabDef[] = [
-    { id: "live",    label: "Live",             icon: Radio       },
-    { id: "past",    label: "Past Games",        icon: CalendarDays },
-    { id: "history", label: "History",           icon: History     },
+    { id: "live",     label: "Live",     icon: Radio       },
+    { id: "upcoming", label: "Upcoming", icon: Timer       },
+    { id: "history",  label: "History",  icon: History     },
   ];
   const adminTabs: TabDef[] = [
-    { id: "pending", label: "Pending",           icon: Clock       },
+    { id: "pending", label: "Pending",   icon: Clock       },
   ];
   const tabs: TabDef[] = role === "admin" ? [...baseTabs, ...adminTabs] : baseTabs;
 
@@ -37,41 +37,36 @@ function Tables() {
       <div className="flex items-end justify-between flex-wrap gap-3 mb-5">
         <div>
           <h1 className="font-display font-black text-4xl gold-text">Tables</h1>
-          <p className="text-foreground/65 text-sm">
-            {role === "admin" ? "Manage live tables, approvals & every point logged." : "Your active tables. Tap your team to log the round."}
-          </p>
         </div>
 
-        {/* Tab bar — icons only on mobile, icon + label on sm+ */}
         <div className="flex items-center gap-1 p-1.5 rounded-full flex-shrink-0"
              style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
           {tabs.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
+            const isAdmin = role === "admin";
             return (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 title={t.label}
-                className={`flex items-center gap-1.5 rounded-full font-bold uppercase tracking-widest transition
-                  px-2.5 py-1.5 sm:px-4
-                  text-xs
+                className={`flex items-center gap-1.5 rounded-full font-bold uppercase tracking-widest transition text-xs
+                  ${isAdmin ? "px-2.5 py-1.5 sm:px-3.5" : "px-3.5 py-1.5"}
                   ${active ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/70"}`}
                 style={active ? { background: "var(--gradient-gold)" } : {}}
               >
-                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                {/* Label hidden on mobile, shown sm+ */}
-                <span className="hidden sm:inline">{t.label}</span>
+                {isAdmin && <Icon className="h-3.5 w-3.5 flex-shrink-0" />}
+                <span className={isAdmin ? "hidden sm:inline" : undefined}>{t.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {tab === "live"    && <LiveTab />}
-      {tab === "past"    && <PastTab />}
-      {tab === "history" && <HistoryTab />}
-      {tab === "pending" && role === "admin" && <PendingTab />}
+      {tab === "live"     && <LiveTab />}
+      {tab === "upcoming" && <UpcomingTab />}
+      {tab === "history"  && <HistoryTab />}
+      {tab === "pending"  && role === "admin" && <PendingTab />}
     </div>
   );
 }
@@ -307,196 +302,185 @@ function LiveTab() {
   );
 }
 
-function PastTab() {
+function UpcomingTab() {
+  const tournament = useApp((s) => s.tournament);
   const allMatches = useApp((s) => s.matches);
-  const matches = allMatches.filter((m) => m.status === "completed");
-  const [pastSearch, setPastSearch] = useState("");
-  const [pastDate, setPastDate] = useState("");
 
-  if (matches.length === 0)
-    return <Empty icon={<History className="h-6 w-6" />} title="No completed games yet" body="Approved match wins will land here." />;
+  // An upcoming tournament is one with a future scheduledDate and no live/pending matches yet
+  const hasScheduled = tournament?.scheduledDate && tournament.scheduledDate > Date.now();
+  const hasLiveMatches = allMatches.some((m) => m.status === "live" || m.status === "pending");
 
-  // Group by calendar date (uses startedAt timestamp)
-  const toDateKey = (ts: number) =>
-    new Date(ts).toLocaleDateString("en-TT", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-
-  // toISODateKey produces a YYYY-MM-DD string for comparison with the date input value
-  const toISODateKey = (ts: number) => {
-    const d = new Date(ts);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
-
-  const grouped = matches.reduce<Record<string, typeof matches>>((acc, m) => {
-    const key = toDateKey(m.startedAt);
-    (acc[key] ??= []).push(m);
-    return acc;
-  }, {});
-
-  // Sort date groups newest first
-  const dateKeys = Object.keys(grouped).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime()
-  );
-
-  const searchTerm = pastSearch.trim().toLowerCase();
-
-  // Apply filters: date filter narrows to one group; team search filters within groups
-  const filteredDateKeys = dateKeys.filter((dateKey) => {
-    // Date filter: match the ISO date of any match in this group
-    if (pastDate) {
-      const hasDate = grouped[dateKey].some((m) => toISODateKey(m.startedAt) === pastDate);
-      if (!hasDate) return false;
-    }
-    // Team search: at least one match in the group must mention the term
-    if (searchTerm) {
-      const hasMatch = grouped[dateKey].some(
-        (m) =>
-          m.teamA.name.toLowerCase().includes(searchTerm) ||
-          m.teamB.name.toLowerCase().includes(searchTerm),
-      );
-      if (!hasMatch) return false;
-    }
-    return true;
-  });
-
-  const inputStyle: React.CSSProperties = {
-    background: "oklch(0.16 0.04 150)",
-    border: "1px solid oklch(0.83 0.16 88 / 25%)",
-    color: "var(--color-foreground)",
-    padding: "0.55rem 0.75rem",
-    borderRadius: "0.5rem",
-    fontSize: "0.875rem",
-    outline: "none",
-  };
+  if (!tournament || !hasScheduled) {
+    return (
+      <Empty
+        icon={<Timer className="h-6 w-6" />}
+        title="No upcoming tournaments"
+      />
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Search + date filter bar */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40 pointer-events-none" />
-          <input
-            value={pastSearch}
-            onChange={(e) => setPastSearch(e.target.value)}
-            placeholder="Search by team name…"
-            style={{ ...inputStyle, paddingLeft: "2.25rem", paddingRight: pastSearch ? "2.25rem" : "0.75rem", width: "100%" }}
-          />
-          {pastSearch && (
-            <button
-              type="button"
-              onClick={() => setPastSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition"
-              title="Clear"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        <div className="relative">
-          <input
-            type="date"
-            value={pastDate}
-            onChange={(e) => setPastDate(e.target.value)}
-            style={{ ...inputStyle, paddingRight: pastDate ? "2.25rem" : "0.75rem", colorScheme: "dark", minWidth: 160 }}
-            placeholder="Date: All"
-          />
-          {!pastDate && (
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/45 text-sm pointer-events-none select-none">
-              Date: All
-            </span>
-          )}
-          {pastDate && (
-            <button
-              type="button"
-              onClick={() => setPastDate("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition"
-              title="Clear date"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-4">
+      <UpcomingCard tournament={tournament} hasLiveMatches={hasLiveMatches} />
+    </div>
+  );
+}
 
-      {filteredDateKeys.length === 0 && (
-        <p className="text-sm text-foreground/50">No games match.</p>
-      )}
+function UpcomingCard({
+  tournament,
+  hasLiveMatches,
+}: {
+  tournament: import("@/lib/store").Tournament;
+  hasLiveMatches: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
-      {filteredDateKeys.map((dateKey) => {
-        // Within a group, apply team search filter
-        const groupMatches = searchTerm
-          ? grouped[dateKey].filter(
-              (m) =>
-                m.teamA.name.toLowerCase().includes(searchTerm) ||
-                m.teamB.name.toLowerCase().includes(searchTerm),
-            )
-          : grouped[dateKey];
+  // Tick every second for the countdown
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
-        return (
-        <div key={dateKey}>
-          {/* Date separator — ornate border style */}
-          <div className="flex items-center gap-4 mb-4">
-            <div
-              className="flex-1 h-px"
-              style={{
-                background: "linear-gradient(to right, transparent, oklch(0.83 0.16 88 / 60%), transparent)",
-              }}
-            />
-            <div
-              className="px-4 py-1.5 rounded-full font-marquee tracking-[0.25em] text-xs"
-              style={{
-                background: "linear-gradient(var(--color-card), var(--color-card)) padding-box, var(--gradient-gold) border-box",
-                border: "2px solid transparent",
-                color: "oklch(0.83 0.16 88)",
-              }}
-            >
-              {dateKey}
-            </div>
-            <div
-              className="flex-1 h-px"
-              style={{
-                background: "linear-gradient(to left, transparent, oklch(0.83 0.16 88 / 60%), transparent)",
-              }}
-            />
+  const scheduledDate = tournament.scheduledDate!;
+  const diff = scheduledDate - now;
+  const started = diff <= 0;
+
+  const pad = (n: number) => String(Math.max(0, Math.floor(n))).padStart(2, "0");
+  const days    = Math.floor(diff / 86_400_000);
+  const hours   = Math.floor((diff % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((diff % 3_600_000) / 60_000);
+  const seconds = Math.floor((diff % 60_000) / 1000);
+
+  const dateLabel = new Date(scheduledDate).toLocaleDateString("en-TT", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+  const timeLabel = new Date(scheduledDate).toLocaleTimeString("en-TT", {
+    hour: "2-digit", minute: "2-digit",
+  });
+
+  return (
+    <div className="ornate-border overflow-hidden">
+      {/* Card header — clickable to expand bracket */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full text-left p-5"
+        style={{ background: started ? "oklch(0.62 0.24 25 / 8%)" : "oklch(0.20 0.06 150 / 60%)" }}
+      >
+        <div className="flex items-start gap-4">
+          <div className="h-12 w-12 rounded-full grid place-items-center flex-shrink-0"
+               style={{ background: started ? "var(--gradient-crimson)" : "var(--gradient-gold)",
+                        color: started ? "white" : "oklch(0.18 0.05 150)" }}>
+            <Trophy className="h-6 w-6" />
           </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-black text-xl gold-text truncate">{tournament.name}</div>
+            <div className="text-sm text-foreground/60 mt-0.5">{dateLabel} · {timeLabel}</div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            {groupMatches.map((m) => (
-              <div key={m.id} className="ornate-border p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-marquee tracking-[0.3em] text-xs text-foreground/60">{m.tableName} · R{m.round}</span>
-                  <div className="flex items-center gap-2">
-                    {m.disqualifiedTeamId && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                            style={{ background: "oklch(0.55 0.22 25 / 30%)", color: "oklch(0.80 0.18 25)", border: "1px solid oklch(0.55 0.22 25 / 50%)" }}>
-                        DQ
-                      </span>
-                    )}
-                    <span className="text-xs font-bold gold-text">FINAL</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <TeamLine
-                    name={m.teamA.name}
-                    score={m.scoreA}
-                    color={m.teamA.color}
-                    winner={m.winnerId === m.teamA.id}
-                    disqualified={m.disqualifiedTeamId === m.teamA.id}
-                  />
-                  <span className="font-display font-black text-foreground/50">—</span>
-                  <TeamLine
-                    name={m.teamB.name}
-                    score={m.scoreB}
-                    color={m.teamB.color}
-                    winner={m.winnerId === m.teamB.id}
-                    disqualified={m.disqualifiedTeamId === m.teamB.id}
-                  />
-                </div>
+            {/* Countdown or Started badge */}
+            {started ? (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider"
+                   style={{ background: "var(--gradient-crimson)", color: "white" }}>
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping bg-white" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                </span>
+                {hasLiveMatches ? "In Progress" : "Starting Now"}
               </div>
+            ) : (
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                {days > 0 && <CountUnit value={days} label="days" />}
+                <CountUnit value={hours} label="hrs" />
+                <CountUnit value={minutes} label="min" />
+                <CountUnit value={seconds} label="sec" />
+              </div>
+            )}
+          </div>
+          <div className="flex-shrink-0 pt-1">
+            {open
+              ? <ChevronUp className="h-5 w-5 text-foreground/50" />
+              : <ChevronDown className="h-5 w-5 text-foreground/50" />}
+          </div>
+        </div>
+
+        {/* Prize strip */}
+        {(tournament.prizes.first) && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              { label: "1st", value: tournament.prizes.first },
+              tournament.prizes.second && { label: "2nd", value: tournament.prizes.second },
+              tournament.prizes.third  && { label: "3rd", value: tournament.prizes.third },
+            ].filter(Boolean).map((p) => p && (
+              <span key={p.label}
+                    className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: "oklch(0.83 0.16 88 / 15%)", color: "oklch(0.83 0.16 88)" }}>
+                {p.label} · {p.value}
+              </span>
             ))}
           </div>
+        )}
+      </button>
+
+      {/* Expanded bracket */}
+      {open && (
+        <div className="px-5 pb-5 pt-3 space-y-4 border-t"
+             style={{ borderColor: "oklch(0.83 0.16 88 / 15%)" }}>
+          <div className="text-[10px] uppercase tracking-[0.3em] text-foreground/50">Tournament Line-up</div>
+
+          {tournament.teams.length < 2 ? (
+            <div className="text-sm text-foreground/50 italic">Teams not yet assigned.</div>
+          ) : (
+            <div className="space-y-2">
+              {/* Pair teams for display — same logic as bracket generation */}
+              {(() => {
+                const teams = tournament.teams;
+                const pairs: [typeof teams[0], typeof teams[0] | undefined][] = [];
+                for (let i = 0; i < teams.length - 1; i += 2) {
+                  pairs.push([teams[i], teams[i + 1]]);
+                }
+                if (teams.length % 2 !== 0) pairs.push([teams[teams.length - 1], undefined]);
+                return pairs.map((pair, i) => (
+                  <div key={i}
+                       className="rounded-xl px-4 py-3 flex items-center gap-3"
+                       style={{ background: "oklch(0.18 0.05 150 / 80%)", border: "1px solid oklch(0.83 0.16 88 / 20%)" }}>
+                    <TeamPill team={pair[0]} />
+                    <span className="font-marquee text-xs text-foreground/40 tracking-widest flex-shrink-0">VS</span>
+                    {pair[1]
+                      ? <TeamPill team={pair[1]} />
+                      : <span className="text-xs text-foreground/40 italic flex-1">Bye</span>}
+                    <span className="text-[10px] text-foreground/35 flex-shrink-0">Table {i + 1}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
         </div>
-        );
-      })}
+      )}
+    </div>
+  );
+}
+
+function CountUnit({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex flex-col items-center px-2.5 py-1.5 rounded-lg min-w-[44px]"
+         style={{ background: "oklch(0.22 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
+      <span className="font-display font-black text-xl gold-text leading-none">
+        {String(Math.max(0, value)).padStart(2, "0")}
+      </span>
+      <span className="text-[9px] uppercase tracking-widest text-foreground/45 mt-0.5">{label}</span>
+    </div>
+  );
+}
+
+function TeamPill({ team }: { team: import("@/lib/store").Team }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+           style={{ background: `var(--${team.color})` }} />
+      <span className="font-display font-bold text-sm truncate"
+            style={{ color: `var(--${team.color})` }}>
+        {team.name}
+      </span>
     </div>
   );
 }
@@ -684,15 +668,23 @@ function TournamentAccordion({
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="font-display font-black text-xl"
-                            style={{ color: m.winnerId === m.teamA.id ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
-                        {m.scoreA}
-                      </span>
-                      <span className="text-foreground/30 text-sm font-bold">vs</span>
-                      <span className="font-display font-black text-xl"
-                            style={{ color: m.winnerId === m.teamB.id ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
-                        {m.scoreB}
-                      </span>
+                      {/* Derive winner by winnerId first, fall back to higher score */}
+                      {(() => {
+                        const winnerIsA = m.winnerId ? m.winnerId === m.teamA.id : m.scoreA > m.scoreB;
+                        return (
+                          <>
+                            <span className="font-display font-black text-xl"
+                                  style={{ color: winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
+                              {m.scoreA}
+                            </span>
+                            <span className="text-foreground/30 text-sm font-bold">vs</span>
+                            <span className="font-display font-black text-xl"
+                                  style={{ color: !winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
+                              {m.scoreB}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="flex-1 min-w-0 text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -717,31 +709,46 @@ function TournamentAccordion({
                        style={{ background: "oklch(0.15 0.04 150 / 80%)", borderTop: "1px solid oklch(0.83 0.16 88 / 12%)" }}>
 
                     {/* Players */}
-                    <div className="grid grid-cols-2 gap-3 pt-4">
-                      <PlayerCard team={m.teamA} isWinner={m.winnerId === m.teamA.id} isDQ={m.disqualifiedTeamId === m.teamA.id} />
-                      <PlayerCard team={m.teamB} isWinner={m.winnerId === m.teamB.id} isDQ={m.disqualifiedTeamId === m.teamB.id} />
-                    </div>
+                    {(() => {
+                      // Derive winner reliably: prefer winnerId, fall back to higher score
+                      const winnerIsA = m.winnerId
+                        ? m.winnerId === m.teamA.id
+                        : m.scoreA > m.scoreB;
+                      const winnerTeam = winnerIsA ? m.teamA : m.teamB;
+                      const loserTeam  = winnerIsA ? m.teamB : m.teamA;
+                      const winnerScore = winnerIsA ? m.scoreA : m.scoreB;
+                      const loserScore  = winnerIsA ? m.scoreB : m.scoreA;
 
-                    {/* Round entries per team */}
-                    {matchEntries.length > 0 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <EntryColumn entries={entriesA} team={m.teamA} />
-                        <EntryColumn entries={entriesB} team={m.teamB} />
-                      </div>
-                    )}
+                      return (
+                        <>
+                          <div className="grid grid-cols-2 gap-3 pt-4">
+                            <PlayerCard team={m.teamA} isWinner={winnerIsA} isDQ={m.disqualifiedTeamId === m.teamA.id} />
+                            <PlayerCard team={m.teamB} isWinner={!winnerIsA} isDQ={m.disqualifiedTeamId === m.teamB.id} />
+                          </div>
 
-                    {/* Final score banner */}
-                    <div className="rounded-xl p-3 flex items-center justify-between gap-3"
-                         style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
-                      <div className="text-xs font-bold uppercase tracking-wider"
-                           style={{ color: `var(--${m.winnerId === m.teamA.id ? m.teamA.color : m.teamB.color})` }}>
-                        {m.winnerId === m.teamA.id ? m.teamA.name : m.teamB.name} wins
-                        {m.disqualifiedTeamId ? " (by DQ)" : ""}
-                      </div>
-                      <div className="font-display font-black text-2xl gold-text flex-shrink-0">
-                        {m.scoreA} — {m.scoreB}
-                      </div>
-                    </div>
+                          {/* Round entries per team */}
+                          {matchEntries.length > 0 && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <EntryColumn entries={entriesA} team={m.teamA} />
+                              <EntryColumn entries={entriesB} team={m.teamB} />
+                            </div>
+                          )}
+
+                          {/* Final score banner */}
+                          <div className="rounded-xl p-3 flex items-center justify-between gap-3"
+                               style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
+                            <div className="text-xs font-bold uppercase tracking-wider"
+                                 style={{ color: `var(--${winnerTeam.color})` }}>
+                              {winnerTeam.name} wins
+                              {m.disqualifiedTeamId ? " (by DQ)" : ""}
+                            </div>
+                            <div className="font-display font-black text-2xl gold-text flex-shrink-0">
+                              {winnerScore} — {loserScore}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
 
                   </div>
                 )}
@@ -1037,7 +1044,7 @@ function TeamLine({ name, score, color, winner, disqualified }: { name: string; 
   );
 }
 
-function Empty({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+function Empty({ icon, title }: { icon: React.ReactNode; title: string; body?: string }) {
   return (
     <div className="ornate-border p-12 text-center">
       <div className="h-14 w-14 mx-auto rounded-full grid place-items-center mb-3"
@@ -1045,7 +1052,6 @@ function Empty({ icon, title, body }: { icon: React.ReactNode; title: string; bo
         {icon}
       </div>
       <div className="font-display font-bold text-xl gold-text">{title}</div>
-      <div className="text-sm text-foreground/65 mt-1">{body}</div>
     </div>
   );
 }

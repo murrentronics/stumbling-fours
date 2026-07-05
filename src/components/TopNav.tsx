@@ -12,16 +12,14 @@ interface TopNavProps {
 export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
   const { profile, isAdmin, signOut, user } = useAuth();
   const label = profile?.display_name || user?.email?.split("@")[0] || "Player";
+  const avatarUrl = profile?.avatar_url ?? null;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside tap
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e: MouseEvent | TouchEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("touchstart", handler);
@@ -31,7 +29,6 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
     };
   }, [menuOpen]);
 
-  // Close on route change
   const close = () => setMenuOpen(false);
 
   return (
@@ -48,7 +45,7 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
         </div>
       </Link>
 
-      {/* Desktop nav — hidden on mobile */}
+      {/* Desktop nav */}
       <nav className="hidden md:flex items-center gap-1 rounded-full p-1.5 flex-shrink-0"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         <NavLink to="/">Home</NavLink>
@@ -59,7 +56,7 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
         {isAdmin && <NavLink to="/settings">Settings</NavLink>}
       </nav>
 
-      {/* Desktop user pill — hidden on mobile */}
+      {/* Desktop right side */}
       <div className="hidden md:flex items-center gap-2 rounded-full p-1.5 flex-shrink-0"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         {onToggleMusic && (
@@ -73,29 +70,33 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
             {musicPlaying ? "Music on" : "Music off"}
           </button>
         )}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider"
-             style={isAdmin ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" } : { color: "var(--color-foreground)" }}>
-          {isAdmin ? <Shield className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+
+        {/* User badge → profile link */}
+        <Link to="/profile"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition hover:opacity-80"
+              style={isAdmin ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" } : { color: "var(--color-foreground)" }}>
+          <AvatarBadge url={avatarUrl} isAdmin={isAdmin} size={22} />
           {isAdmin ? "Admin" : "Player"} · {label}
-        </div>
+        </Link>
+
         <button onClick={() => signOut()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-foreground/70 hover:text-foreground transition">
           <LogOut className="h-3.5 w-3.5" /> Sign out
         </button>
       </div>
 
-      {/* Mobile: user badge + hamburger */}
+      {/* Mobile: avatar badge + hamburger */}
       <div className="flex md:hidden items-center gap-2 flex-shrink-0">
-        {/* Compact user badge */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider"
-             style={isAdmin
-               ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }
-               : { background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)", color: "var(--color-foreground)" }}>
-          {isAdmin ? <Shield className="h-3 w-3" /> : <User className="h-3 w-3" />}
+        <Link to="/profile" onClick={close}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition hover:opacity-80"
+              style={isAdmin
+                ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }
+                : { background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)", color: "var(--color-foreground)" }}>
+          <AvatarBadge url={avatarUrl} isAdmin={isAdmin} size={20} />
           <span className="max-w-[80px] truncate">{label}</span>
-        </div>
+        </Link>
 
-        {/* Hamburger button */}
+        {/* Hamburger */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(v => !v)}
@@ -103,18 +104,12 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
             style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}
             aria-label="Menu"
           >
-            {menuOpen
-              ? <X className="h-5 w-5 text-foreground" />
-              : <Menu className="h-5 w-5 text-foreground" />}
+            {menuOpen ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
           </button>
 
-          {/* Dropdown menu */}
           {menuOpen && (
-            <div
-              className="absolute right-0 top-12 z-50 w-56 rounded-2xl shadow-2xl overflow-hidden"
-              style={{ background: "oklch(0.18 0.05 150)", border: "2px solid oklch(0.83 0.16 88 / 35%)" }}
-            >
-              {/* Nav links */}
+            <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl shadow-2xl overflow-hidden"
+                 style={{ background: "oklch(0.18 0.05 150)", border: "2px solid oklch(0.83 0.16 88 / 35%)" }}>
               <div className="p-2 space-y-0.5">
                 <MobileNavLink to="/" onClick={close}>Home</MobileNavLink>
                 <MobileNavLink to="/tables" onClick={close}>Tables</MobileNavLink>
@@ -127,32 +122,21 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
                   </MobileNavLink>
                 )}
               </div>
-
               <div className="h-px mx-3" style={{ background: "oklch(0.83 0.16 88 / 20%)" }} />
-
-              {/* Music toggle */}
               {onToggleMusic && (
                 <div className="p-2">
-                  <button
-                    onClick={() => { onToggleMusic(); close(); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition hover:bg-white/8"
-                    style={musicPlaying
-                      ? { color: "oklch(0.83 0.16 88)" }
-                      : { color: "var(--color-foreground)", opacity: 0.7 }}>
+                  <button onClick={() => { onToggleMusic(); close(); }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition hover:bg-white/8"
+                          style={musicPlaying ? { color: "oklch(0.83 0.16 88)" } : { color: "var(--color-foreground)", opacity: 0.7 }}>
                     {musicPlaying ? <Music className="h-4 w-4" /> : <Music2 className="h-4 w-4" />}
                     {musicPlaying ? "Music On" : "Music Off"}
                   </button>
                 </div>
               )}
-
               <div className="h-px mx-3" style={{ background: "oklch(0.83 0.16 88 / 20%)" }} />
-
-              {/* Sign out — always last */}
               <div className="p-2">
-                <button
-                  onClick={() => { signOut(); close(); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-red-400 hover:bg-white/8 transition"
-                >
+                <button onClick={() => { signOut(); close(); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-red-400 hover:bg-white/8 transition">
                   <LogOut className="h-4 w-4" /> Sign Out
                 </button>
               </div>
@@ -164,17 +148,37 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
   );
 }
 
+/** Tiny avatar circle — shows photo if available, icon fallback */
+function AvatarBadge({ url, isAdmin, size }: { url: string | null; isAdmin: boolean; size: number }) {
+  return (
+    <div className="rounded-full overflow-hidden flex-shrink-0 border-2"
+         style={{
+           width: size, height: size,
+           borderColor: isAdmin ? "oklch(0.18 0.05 150)" : "oklch(0.83 0.16 88 / 50%)",
+           background: "oklch(0.22 0.06 150)",
+         }}>
+      {url ? (
+        <img src={url} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full grid place-items-center">
+          {isAdmin
+            ? <Shield style={{ width: size * 0.55, height: size * 0.55 }} />
+            : <User style={{ width: size * 0.55, height: size * 0.55, opacity: 0.6 }} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
-    <Link
-      to={to}
-      className="px-4 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider text-foreground/75 hover:text-foreground transition"
-      activeProps={{
-        className: "px-4 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider text-[oklch(0.18_0.05_150)]",
-        style: { background: "var(--gradient-gold)" },
-      }}
-      activeOptions={{ exact: to === "/" }}
-    >
+    <Link to={to}
+          className="px-4 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider text-foreground/75 hover:text-foreground transition"
+          activeProps={{
+            className: "px-4 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider text-[oklch(0.18_0.05_150)]",
+            style: { background: "var(--gradient-gold)" },
+          }}
+          activeOptions={{ exact: to === "/" }}>
       {children}
     </Link>
   );
@@ -182,16 +186,13 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
 
 function MobileNavLink({ to, children, onClick }: { to: string; children: React.ReactNode; onClick: () => void }) {
   return (
-    <Link
-      to={to}
-      onClick={onClick}
-      className="flex items-center px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-foreground/75 hover:text-foreground hover:bg-white/8 transition"
-      activeProps={{
-        className: "flex items-center px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-[oklch(0.18_0.05_150)]",
-        style: { background: "var(--gradient-gold)" },
-      }}
-      activeOptions={{ exact: to === "/" }}
-    >
+    <Link to={to} onClick={onClick}
+          className="flex items-center px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-foreground/75 hover:text-foreground hover:bg-white/8 transition"
+          activeProps={{
+            className: "flex items-center px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-[oklch(0.18_0.05_150)]",
+            style: { background: "var(--gradient-gold)" },
+          }}
+          activeOptions={{ exact: to === "/" }}>
       {children}
     </Link>
   );

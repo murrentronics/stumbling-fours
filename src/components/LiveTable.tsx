@@ -1,8 +1,32 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { useApp, type Match, type Team } from "@/lib/store";
 import { HangJackOverlay } from "./HangJackOverlay";
 import { Crown, Spade, Heart, Diamond, Club } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { appMusic } from "@/lib/appMusic";
+
+/** Fetch avatar_url for a player by email — cached in module scope */
+const avatarCache = new Map<string, string | null>();
+
+function usePlayerAvatar(email: string): string | null {
+  const [url, setUrl] = useState<string | null>(avatarCache.get(email) ?? null);
+  useEffect(() => {
+    if (!email) return;
+    if (avatarCache.has(email)) { setUrl(avatarCache.get(email)!); return; }
+    supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("email", email)
+      .maybeSingle()
+      .then(({ data }) => {
+        const av = (data as { avatar_url: string | null } | null)?.avatar_url ?? null;
+        avatarCache.set(email, av);
+        setUrl(av);
+      });
+  }, [email]);
+  return url;
+}
 
 export function LiveTable({ match }: { match: Match }) {
   const currentUserEmail = useApp((s) => s.currentUserEmail);
@@ -17,15 +41,53 @@ export function LiveTable({ match }: { match: Match }) {
     [allEntries, match.id],
   );
 
-  // which team does current user belong to (for player view)
-  const myTeam = useMemo<Team | null>(() => {
+  // ── Silence music while at the live table ────────────────────────────────
+  // Remember whether music was playing when we arrived, resume on exit.
+  const musicWasPlaying = useRef(false);
+  useEffect(() => {
+    musicWasPlaying.current = appMusic.playing;
+    if (appMusic.playing) appMusic.stop();
+    return () => {
+      // Only resume if it was playing before we entered
+      if (musicWasPlaying.current) appMusic.start();
+    };
+  }, []);
+
+  // ── Scorer selection ──────────────────────────────────────────────────────
+  // For each team, exactly ONE player gets the scoring panel.
+  // Priority: whichever team player is currently logged in.
+  // If multiple players from the same team are registered but only one has
+  // a phone, the logged-in one becomes scorer automatically.
+  // Fallback (no one logged in): player[0] is designated scorer by default.
+  //
+  // This means:
+  //  - If you're player[1] and player[0] is also logged in → you spectate
+  //  - If you're player[1] and player[0] is NOT logged in  → you score
+  //  - If you're not on either team                        → you spectate
+
+  const getScorerEmail = (team: Team): string => {
     const emailLower = currentUserEmail.toLowerCase();
-    const inA = match.teamA.players.some((p) => p.email?.toLowerCase() === emailLower);
-    const inB = match.teamB.players.some((p) => p.email?.toLowerCase() === emailLower);
-    if (inA) return match.teamA;
-    if (inB) return match.teamB;
-    return null;
-  }, [match, currentUserEmail]);
+    // If current user is on this team, they are the scorer
+    if (team.players.some((p) => p.email?.toLowerCase() === emailLower)) {
+      return emailLower;
+    }
+    // Otherwise fall back to player[0] as default scorer
+    return team.players[0]?.email?.toLowerCase() ?? "";
+  };
+
+  const scorerEmailA = useMemo(() => getScorerEmail(match.teamA), [match, currentUserEmail]);
+  const scorerEmailB = useMemo(() => getScorerEmail(match.teamB), [match, currentUserEmail]);
+
+  const emailLower = currentUserEmail.toLowerCase();
+
+  // Can this user score for team A / B?
+  const canScoreA = role === "admin" || (emailLower !== "" && emailLower === scorerEmailA);
+  const canScoreB = role === "admin" || (emailLower !== "" && emailLower === scorerEmailB);
+
+  // Is the user on one of the teams (for spectator message)
+  const onTeamA = match.teamA.players.some((p) => p.email?.toLowerCase() === emailLower);
+  const onTeamB = match.teamB.players.some((p) => p.email?.toLowerCase() === emailLower);
+  const onAnyTeam = onTeamA || onTeamB;
 
   return (
     <div className="ornate-border relative overflow-hidden">
@@ -72,9 +134,9 @@ export function LiveTable({ match }: { match: Match }) {
           {match.teamB.players[1] && <Seat pos="bottom-left" player={match.teamB.players[1]} team={match.teamB} />}
         </div>
 
-        {/* score entry — players see their own team; admins see both */}
+        {/* score entry — scorer for each team sees their panel; everyone else spectates */}
         <div className="mt-6 grid md:grid-cols-2 gap-4">
-          {(role === "admin" || myTeam?.id === match.teamA.id) && (
+          {canScoreA && (
             <ScoreEntry
               match={match}
               team={match.teamA}
@@ -91,7 +153,7 @@ export function LiveTable({ match }: { match: Match }) {
               }}
             />
           )}
-          {(role === "admin" || myTeam?.id === match.teamB.id) && (
+          {canScoreB && (
             <ScoreEntry
               match={match}
               team={match.teamB}
@@ -108,9 +170,11 @@ export function LiveTable({ match }: { match: Match }) {
               }}
             />
           )}
-          {role !== "admin" && !myTeam && (
+          {!canScoreA && !canScoreB && (
             <div className="md:col-span-2 text-center text-sm text-foreground/50 italic py-4">
-              You are spectating this table.
+              {onAnyTeam
+                ? "Another player on your team is the scorer for this round."
+                : "You are spectating this table."}
             </div>
           )}
         </div>
@@ -137,6 +201,79 @@ export function LiveTable({ match }: { match: Match }) {
             ))}
           </div>
         </div>
+
+        {/* Next-round roster footer */}
+        <NextRoundRoster currentMatchId={match.id} />
+      </div>
+    </div>
+  );
+}
+
+/** Shows other live/pending matches happening right now as a footer strip */
+function NextRoundRoster({ currentMatchId }: { currentMatchId: string }) {
+  const allMatches = useApp((s) => s.matches);
+
+  // Other tables currently playing (live or pending, not this one)
+  const otherLive = useMemo(
+    () => allMatches.filter(
+      (m) => m.id !== currentMatchId && (m.status === "live" || m.status === "pending")
+    ),
+    [allMatches, currentMatchId],
+  );
+
+  // Completed matches of the current round — show who won to hint next round
+  const completedThisRound = useMemo(() => {
+    const current = allMatches.find((m) => m.id === currentMatchId);
+    if (!current) return [];
+    return allMatches.filter(
+      (m) => m.id !== currentMatchId && m.status === "completed" && m.round === current.round
+    );
+  }, [allMatches, currentMatchId]);
+
+  if (otherLive.length === 0 && completedThisRound.length === 0) return null;
+
+  return (
+    <div className="mt-5 pt-4 border-t" style={{ borderColor: "oklch(0.83 0.16 88 / 15%)" }}>
+      <div className="text-[10px] uppercase tracking-[0.3em] text-foreground/45 mb-3">Other Tables This Round</div>
+      <div className="space-y-2">
+        {otherLive.map((m) => (
+          <div key={m.id}
+               className="rounded-lg px-3 py-2 flex items-center gap-2"
+               style={{ background: "oklch(0.18 0.05 150 / 80%)", border: "1px solid oklch(0.83 0.16 88 / 15%)" }}>
+            <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
+              <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
+                    style={{ background: "oklch(0.62 0.24 25)" }} />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5"
+                    style={{ background: "oklch(0.62 0.24 25)" }} />
+            </span>
+            <span className="font-marquee text-[10px] tracking-widest text-foreground/50 flex-shrink-0">{m.tableName}</span>
+            <span className="font-display font-bold text-xs truncate" style={{ color: `var(--${m.teamA.color})` }}>{m.teamA.name}</span>
+            <span className="font-display font-black text-sm" style={{ color: `var(--${m.teamA.color})` }}>{m.scoreA}</span>
+            <span className="text-foreground/30 text-[10px]">vs</span>
+            <span className="font-display font-black text-sm" style={{ color: `var(--${m.teamB.color})` }}>{m.scoreB}</span>
+            <span className="font-display font-bold text-xs truncate text-right" style={{ color: `var(--${m.teamB.color})` }}>{m.teamB.name}</span>
+          </div>
+        ))}
+        {completedThisRound.map((m) => {
+          const winnerIsA = m.winnerId ? m.winnerId === m.teamA.id : m.scoreA > m.scoreB;
+          const winner = winnerIsA ? m.teamA : m.teamB;
+          return (
+            <div key={m.id}
+                 className="rounded-lg px-3 py-2 flex items-center gap-2"
+                 style={{ background: "oklch(0.18 0.05 150 / 60%)", border: "1px solid oklch(0.83 0.16 88 / 10%)" }}>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                    style={{ background: "oklch(0.83 0.16 88 / 15%)", color: "oklch(0.83 0.16 88)" }}>
+                Done
+              </span>
+              <span className="font-marquee text-[10px] tracking-widest text-foreground/50 flex-shrink-0">{m.tableName}</span>
+              <span className="text-[10px] text-foreground/50">Winner:</span>
+              <span className="font-display font-bold text-xs" style={{ color: `var(--${winner.color})` }}>{winner.name}</span>
+              <span className="font-display font-black text-sm gold-text ml-auto flex-shrink-0">
+                {winnerIsA ? m.scoreA : m.scoreB}–{winnerIsA ? m.scoreB : m.scoreA}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -187,16 +324,27 @@ function Seat({
     "bottom-left": "bottom-2 left-2 sm:bottom-4 sm:left-8",
     "bottom-right": "bottom-2 right-2 sm:bottom-4 sm:right-8",
   } as const;
+
+  const avatarUrl = usePlayerAvatar(player.email);
   const Icon = SeatIcons[Math.abs((player.email ?? "").length) % 4];
+
   return (
     <div className={`absolute ${positions[pos]} flex items-center gap-2`}>
-      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full grid place-items-center border-2"
+      {/* Avatar circle with thick team-colour border */}
+      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden flex-shrink-0 border-[3px]"
            style={{
-             background: "oklch(0.20 0.06 150)",
              borderColor: `var(--${team.color})`,
              boxShadow: `0 0 14px var(--${team.color})`,
+             background: "oklch(0.20 0.06 150)",
            }}>
-        <Icon className="h-5 w-5" style={{ color: `var(--${team.color})` }} />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={player.name}
+               className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full grid place-items-center">
+            <Icon className="h-5 w-5" style={{ color: `var(--${team.color})` }} />
+          </div>
+        )}
       </div>
       <div className="hidden sm:block leading-tight">
         <div className="font-display font-bold text-sm">{player.name}</div>

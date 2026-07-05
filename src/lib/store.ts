@@ -75,6 +75,7 @@ export type Tournament = {
   prizes: { first: string; second?: string; third?: string };
   teams: Team[];
   createdAt: number;
+  scheduledDate?: number; // future start timestamp — shows in Upcoming tab
 };
 
 type State = {

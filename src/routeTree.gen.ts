@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TournamentRouteImport } from './routes/tournament'
 import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as TablesRouteImport } from './routes/tables'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as MyGamesRouteImport } from './routes/my-games'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -30,6 +33,21 @@ const TablesRoute = TablesRouteImport.update({
   path: '/tables',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyGamesRoute = MyGamesRouteImport.update({
+  id: '/my-games',
+  path: '/my-games',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -44,6 +62,9 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/my-games': typeof MyGamesRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/tables': typeof TablesRoute
   '/teams': typeof TeamsRoute
   '/tournament': typeof TournamentRoute
@@ -51,6 +72,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/my-games': typeof MyGamesRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/tables': typeof TablesRoute
   '/teams': typeof TeamsRoute
   '/tournament': typeof TournamentRoute
@@ -59,21 +83,27 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/my-games': typeof MyGamesRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/tables': typeof TablesRoute
   '/teams': typeof TeamsRoute
   '/tournament': typeof TournamentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/tables' | '/teams' | '/tournament'
+  fullPaths: '/' | '/auth' | '/my-games' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/tables' | '/teams' | '/tournament'
-  id: '__root__' | '/' | '/auth' | '/tables' | '/teams' | '/tournament'
+  to: '/' | '/auth' | '/my-games' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
+  id: '__root__' | '/' | '/auth' | '/my-games' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  MyGamesRoute: typeof MyGamesRoute
+  ProfileRoute: typeof ProfileRoute
+  SettingsRoute: typeof SettingsRoute
   TablesRoute: typeof TablesRoute
   TeamsRoute: typeof TeamsRoute
   TournamentRoute: typeof TournamentRoute
@@ -102,6 +132,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TablesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-games': {
+      id: '/my-games'
+      path: '/my-games'
+      fullPath: '/my-games'
+      preLoaderRoute: typeof MyGamesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -122,6 +173,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  MyGamesRoute: MyGamesRoute,
+  ProfileRoute: ProfileRoute,
+  SettingsRoute: SettingsRoute,
   TablesRoute: TablesRoute,
   TeamsRoute: TeamsRoute,
   TournamentRoute: TournamentRoute,

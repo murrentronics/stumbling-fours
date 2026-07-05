@@ -40,6 +40,15 @@ function TournamentPage() {
   const [second, setSecond] = useState(tournament?.prizes.second ?? "$400");
   const [third, setThird] = useState(tournament?.prizes.third ?? "$200");
 
+  // Scheduled date — stored as YYYY-MM-DDTHH:mm for the datetime-local input
+  const toInputVal = (ts?: number) => {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const [scheduledInput, setScheduledInput] = useState(toInputVal(tournament?.scheduledDate));
+
   const [rosterTeams, setRosterTeams] = useState<RosterTeam[]>([]);
   const [rosterMembers, setRosterMembers] = useState<RosterMember[]>([]);
   const [slots, setSlots] = useState<SlotTeam[]>([]);
@@ -111,23 +120,27 @@ function TournamentPage() {
 
   const lock = () => {
     const teams = buildTeams();
+    const scheduledDate = scheduledInput ? new Date(scheduledInput).getTime() : undefined;
     setTournament({
       id: tournament?.id ?? `trn-${Date.now()}`,
       name, playersPerTeam: pp, gamesPerRound: gpr,
       prizes: { first, second, third },
       teams,
       createdAt: tournament?.createdAt ?? Date.now(),
+      scheduledDate,
     });
   };
 
   const startRound = () => {
     const teams = buildTeams();
+    const scheduledDate = scheduledInput ? new Date(scheduledInput).getTime() : undefined;
     setTournament({
       id: tournament?.id ?? `trn-${Date.now()}`,
       name, playersPerTeam: pp, gamesPerRound: gpr,
       prizes: { first, second, third },
       teams,
       createdAt: tournament?.createdAt ?? Date.now(),
+      scheduledDate,
     });
     const shuffled = shuffle(teams);
     const newMatches: Match[] = [];
@@ -195,6 +208,16 @@ function TournamentPage() {
       <section className="ornate-border p-6 grid md:grid-cols-2 gap-5">
         <Field label="Tournament Name">
           <input className="ts-input" value={name} disabled={!canEdit} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Schedule Date & Time (optional)">
+          <input
+            type="datetime-local"
+            className="ts-input"
+            value={scheduledInput}
+            disabled={!canEdit}
+            onChange={(e) => setScheduledInput(e.target.value)}
+            style={{ colorScheme: "dark" }}
+          />
         </Field>
         <Field label="Players per Team (at each table)">
           <div className="flex gap-2">
