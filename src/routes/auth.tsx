@@ -137,7 +137,7 @@ function AuthPage() {
             <>
               <Field icon={<UserIcon className="h-4 w-4" />}>
                 <input ref={nameRef} type="text" name="displayname"
-                       autoComplete="name" placeholder="Display name"
+                       autoComplete="name" placeholder="Full Name"
                        className={inputCls} />
               </Field>
               <Field icon={<Users className="h-4 w-4" />}>
