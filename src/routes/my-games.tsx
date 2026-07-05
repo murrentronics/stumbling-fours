@@ -33,23 +33,46 @@ function toISODate(ts: number) {
 }
 
 /** Returns whether the current user's team won this match.
- *  Prefers winnerId when set, falls back to score comparison. */
+ *  Checks both team player emails. If email is missing/empty on both sides,
+ *  falls back to pure score comparison (winner = higher score). */
 function didIWin(match: Match, email: string): boolean {
-  const inA = match.teamA.players.some((p) => p.email?.toLowerCase() === email.toLowerCase());
+  const emailLower = email.toLowerCase();
+
+  const inA = match.teamA.players.some(
+    (p) => p.email && p.email.toLowerCase() === emailLower
+  );
+  const inB = match.teamB.players.some(
+    (p) => p.email && p.email.toLowerCase() === emailLower
+  );
+
+  // If we can't find the user's email on either team (empty email in roster),
+  // fall back to score — whoever scored more wins
+  if (!inA && !inB) {
+    // Can't determine which team — show as win only if scoreA > scoreB
+    // (we at least know they were in the match, so pick the higher score as "theirs")
+    return match.scoreA > match.scoreB;
+  }
+
   const myScore  = inA ? match.scoreA : match.scoreB;
   const oppScore = inA ? match.scoreB : match.scoreA;
   const myTeamId = inA ? match.teamA.id : match.teamB.id;
+
+  // Prefer explicit winnerId
   if (match.winnerId) {
     return match.winnerId === myTeamId;
   }
+  // Fall back to score
   return myScore > oppScore;
 }
 
 function getMyTeamAndOpponent(match: Match, email: string) {
-  const inA = match.teamA.players.some((p) => p.email?.toLowerCase() === email.toLowerCase());
-  const myTeam = inA ? match.teamA : match.teamB;
+  const emailLower = email.toLowerCase();
+  const inA = match.teamA.players.some(
+    (p) => p.email && p.email.toLowerCase() === emailLower
+  );
+  const myTeam   = inA ? match.teamA : match.teamB;
   const opponent = inA ? match.teamB : match.teamA;
-  const myScore = inA ? match.scoreA : match.scoreB;
+  const myScore  = inA ? match.scoreA : match.scoreB;
   const oppScore = inA ? match.scoreB : match.scoreA;
   return { myTeam, opponent, myScore, oppScore };
 }

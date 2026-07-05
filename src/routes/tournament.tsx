@@ -105,9 +105,12 @@ function TournamentPage() {
       .filter((s) => s.rosterTeamId)
       .map((s): Team => {
         const rt = rosterTeams.find((r) => r.id === s.rosterTeamId);
-        const players = s.playerUserIds.map((uid) => {
-          const m = rosterMembers.find((mm) => mm.user_id === uid && mm.team_id === s.rosterTeamId);
-          return { email: m?.email ?? "", name: m?.display_name ?? "" };
+        const players = s.playerUserIds.filter(Boolean).map((uid) => {
+          // Try exact match first (user_id + team), fall back to user_id only
+          const m =
+            rosterMembers.find((mm) => mm.user_id === uid && mm.team_id === s.rosterTeamId) ??
+            rosterMembers.find((mm) => mm.user_id === uid);
+          return { email: m?.email ?? "", name: m?.display_name ?? uid };
         });
         return {
           id: s.slotId,
