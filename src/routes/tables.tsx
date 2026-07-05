@@ -21,47 +21,76 @@ type TabDef = { id: Tab; label: string; icon: LucideIcon };
 
 function Tables() {
   const role = useApp((s) => s.role);
+  const allMatches = useApp((s) => s.matches);
+  const tournament = useApp((s) => s.tournament);
   const [tab, setTab] = useState<Tab>("live");
 
+  // ── Realtime badge counts ────────────────────────────────────────────────
+  const liveCount     = allMatches.filter((m) => m.status === "live" || m.status === "pending").length;
+  const upcomingCount = tournament?.scheduledDate && tournament.scheduledDate > Date.now() ? 1 : 0;
+  const historyCount  = allMatches.filter((m) => m.status === "completed").length;
+  const pendingCount  = allMatches.filter((m) => m.status === "pending").length;
+
+  const counts: Record<Tab, number> = {
+    live:     liveCount,
+    upcoming: upcomingCount,
+    history:  historyCount,
+    pending:  pendingCount,
+  };
+
   const baseTabs: TabDef[] = [
-    { id: "live",     label: "Live",     icon: Radio       },
-    { id: "upcoming", label: "Upcoming", icon: Timer       },
-    { id: "history",  label: "History",  icon: History     },
+    { id: "live",     label: "Live",     icon: Radio   },
+    { id: "upcoming", label: "Upcoming", icon: Timer   },
+    { id: "history",  label: "History",  icon: History },
   ];
   const adminTabs: TabDef[] = [
-    { id: "pending", label: "Pending",   icon: Clock       },
+    { id: "pending", label: "Pending",   icon: Clock   },
   ];
   const tabs: TabDef[] = role === "admin" ? [...baseTabs, ...adminTabs] : baseTabs;
 
   return (
     <div className="pt-2">
-      <div className="flex items-end justify-between flex-wrap gap-3 mb-5">
-        <div>
-          <h1 className="font-display font-black text-4xl gold-text">Tables</h1>
-        </div>
+      {/* Title row */}
+      <div className="mb-3">
+        <h1 className="font-display font-black text-4xl gold-text">Tables</h1>
+      </div>
 
-        <div className="flex items-center gap-1 p-1.5 rounded-full flex-shrink-0"
-             style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            const isAdmin = role === "admin";
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                title={t.label}
-                className={`flex items-center gap-1.5 rounded-full font-bold uppercase tracking-widest transition text-xs
-                  ${isAdmin ? "px-2.5 py-1.5 sm:px-3.5" : "px-3.5 py-1.5"}
-                  ${active ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/70"}`}
-                style={active ? { background: "var(--gradient-gold)" } : {}}
-              >
-                {isAdmin && <Icon className="h-3.5 w-3.5 flex-shrink-0" />}
-                <span className={isAdmin ? "hidden sm:inline" : undefined}>{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Tab strip — full width, fits mobile */}
+      <div className="flex items-center gap-1 p-1.5 rounded-full mb-5 w-full"
+           style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
+        {tabs.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          const count  = counts[t.id];
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              title={t.label}
+              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 font-bold uppercase tracking-widest transition text-xs min-w-0
+                ${active ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/70"}`}
+              style={active ? { background: "var(--gradient-gold)" } : {}}
+            >
+              <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline truncate">{t.label}</span>
+              {count > 0 && (
+                <span
+                  className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"
+                  style={{
+                    background: active
+                      ? "oklch(0.18 0.05 150 / 50%)"
+                      : t.id === "pending"
+                        ? "var(--gradient-crimson)"
+                        : "oklch(0.83 0.16 88 / 25%)",
+                    color: active ? "oklch(0.18 0.05 150)" : t.id === "pending" ? "white" : "oklch(0.83 0.16 88)",
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "live"     && <LiveTab />}
@@ -306,6 +335,8 @@ function LiveTab() {
 function UpcomingTab() {
   const tournament = useApp((s) => s.tournament);
   const allMatches = useApp((s) => s.matches);
+  const role = useApp((s) => s.role);
+  const setTournament = useApp((s) => s.setTournament);
 
   // An upcoming tournament is one with a future scheduledDate and no live/pending matches yet
   const hasScheduled = tournament?.scheduledDate && tournament.scheduledDate > Date.now();
@@ -322,7 +353,15 @@ function UpcomingTab() {
 
   return (
     <div className="space-y-4">
-      <UpcomingCard tournament={tournament} hasLiveMatches={hasLiveMatches} />
+      <UpcomingCard
+        tournament={tournament}
+        hasLiveMatches={hasLiveMatches}
+        isAdmin={role === "admin"}
+        onDelete={() => {
+          if (!confirm(`Cancel "${tournament.name}"? This will remove the scheduled tournament.`)) return;
+          setTournament(null);
+        }}
+      />
     </div>
   );
 }
@@ -330,9 +369,13 @@ function UpcomingTab() {
 function UpcomingCard({
   tournament,
   hasLiveMatches,
+  isAdmin,
+  onDelete,
 }: {
   tournament: import("@/lib/store").Tournament;
   hasLiveMatches: boolean;
+  isAdmin?: boolean;
+  onDelete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -369,21 +412,23 @@ function UpcomingCard({
 
   return (
     <div className="ornate-border overflow-hidden">
-      {/* Card header — clickable to expand bracket */}
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full text-left p-5"
-        style={{ background: started ? "oklch(0.62 0.24 25 / 8%)" : "oklch(0.20 0.06 150 / 60%)" }}
-      >
-        <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-full grid place-items-center flex-shrink-0"
-               style={{ background: started ? "var(--gradient-crimson)" : "var(--gradient-gold)",
-                        color: started ? "white" : "oklch(0.18 0.05 150)" }}>
-            <Trophy className="h-6 w-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-display font-black text-xl gold-text truncate">{tournament.name}</div>
-            <div className="text-sm text-foreground/60 mt-0.5">{dateLabel} · {timeLabel}</div>
+      {/* Card header */}
+      <div className="relative"
+           style={{ background: started ? "oklch(0.62 0.24 25 / 8%)" : "oklch(0.20 0.06 150 / 60%)" }}>
+        {/* Expand button — takes up full header */}
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="w-full text-left p-5"
+        >
+          <div className="flex items-start gap-4 pr-10">
+            <div className="h-12 w-12 rounded-full grid place-items-center flex-shrink-0"
+                 style={{ background: started ? "var(--gradient-crimson)" : "var(--gradient-gold)",
+                          color: started ? "white" : "oklch(0.18 0.05 150)" }}>
+              <Trophy className="h-6 w-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display font-black text-xl gold-text truncate">{tournament.name}</div>
+              <div className="text-sm text-foreground/60 mt-0.5">{dateLabel} · {timeLabel}</div>
 
             {/* Countdown or Started badge */}
             {started ? (
@@ -427,7 +472,19 @@ function UpcomingCard({
             ))}
           </div>
         )}
-      </button>
+        </button>
+
+        {/* Admin trash button — absolutely positioned top-right */}
+        {isAdmin && onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="absolute top-3 right-3 p-2 rounded-md transition hover:bg-red-500/20"
+            title="Cancel tournament"
+          >
+            <Trash2 className="h-4 w-4 text-red-400" />
+          </button>
+        )}
+      </div>
 
       {/* Expanded bracket */}
       {open && (
@@ -608,8 +665,8 @@ function TournamentAccordion({
           <Trophy className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-display font-black text-lg gold-text truncate">{name}</div>
-          <div className="font-marquee text-xs tracking-[0.25em] text-foreground/55">{dateRange}</div>
+          <div className="font-display font-black text-base gold-text leading-snug">{name}</div>
+          <div className="font-marquee text-xs tracking-[0.25em] text-foreground/55 mt-0.5">{dateRange}</div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-xs text-foreground/50">{matches.length} games</span>
@@ -760,16 +817,28 @@ function TournamentAccordion({
                           )}
 
                           {/* Final score banner */}
-                          <div className="rounded-xl p-3 flex items-center justify-between gap-3"
-                               style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
-                            <div className="text-xs font-bold uppercase tracking-wider"
-                                 style={{ color: `var(--${winnerTeam.color})` }}>
-                              {winnerTeam.name} wins
-                              {m.disqualifiedTeamId ? " (by DQ)" : ""}
+                          <div className="rounded-xl overflow-hidden"
+                               style={{ border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
+                            <div className="p-3 flex items-center justify-between gap-3"
+                                 style={{ background: "oklch(0.20 0.06 150)" }}>
+                              <div className="text-xs font-bold uppercase tracking-wider"
+                                   style={{ color: `var(--${winnerTeam.color})` }}>
+                                {winnerTeam.name} wins
+                              </div>
+                              <div className="font-display font-black text-2xl gold-text flex-shrink-0">
+                                {winnerScore} — {loserScore}
+                              </div>
                             </div>
-                            <div className="font-display font-black text-2xl gold-text flex-shrink-0">
-                              {winnerScore} — {loserScore}
-                            </div>
+                            {m.disqualifiedTeamId && (
+                              <div className="flex items-center gap-2 px-3 py-2"
+                                   style={{ background: "oklch(0.55 0.22 25 / 12%)", borderTop: "1px solid oklch(0.55 0.22 25 / 25%)" }}>
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex-shrink-0"
+                                      style={{ background: "var(--gradient-crimson)", color: "white" }}>DQ</span>
+                                <span className="text-[11px] text-foreground/60">
+                                  {m.disqualifiedTeamId === m.teamA.id ? m.teamA.name : m.teamB.name} was disqualified — opponent awarded the win
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </>
                       );

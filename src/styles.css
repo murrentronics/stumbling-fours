@@ -59,6 +59,14 @@
   --color-team-p: var(--team-p);
   --color-team-q: var(--team-q);
   --color-team-r: var(--team-r);
+  --color-team-s: var(--team-s);
+  --color-team-t: var(--team-t);
+  --color-team-u: var(--team-u);
+  --color-team-v: var(--team-v);
+  --color-team-w: var(--team-w);
+  --color-team-x: var(--team-x);
+  --color-team-y: var(--team-y);
+  --color-team-z: var(--team-z);
   --font-display: "Cinzel", serif;
   --font-marquee: "Bebas Neue", sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
@@ -91,6 +99,14 @@
   --team-p: oklch(0.62 0.08 230);  /* slate */
   --team-q: oklch(0.64 0.16 55);   /* copper */
   --team-r: oklch(0.58 0.22 285);  /* violet */
+  --team-s: oklch(0.48 0.10 55);   /* brown */
+  --team-t: oklch(0.40 0.16 20);   /* burgundy */
+  --team-u: oklch(0.74 0.08 75);   /* tan */
+  --team-v: oklch(0.60 0.01 250);  /* grey */
+  --team-w: oklch(0.93 0.04 95);   /* cream */
+  --team-x: oklch(0.86 0.05 85);   /* beige */
+  --team-y: oklch(0.97 0.00 0);    /* white */
+  --team-z: oklch(0.22 0.00 0);    /* black */
 
   --background: oklch(0.18 0.05 150);
   --foreground: oklch(0.97 0.02 90);

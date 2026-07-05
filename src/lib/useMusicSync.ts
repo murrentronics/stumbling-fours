@@ -35,6 +35,20 @@ export function useMusicSync(enabled: boolean) {
     return () => { appMusic.stop(); };
   }, []);
 
+  // Pause when app goes to background, resume when it comes back — only if music was on
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (appMusic.playing) appMusic.stop();
+      } else {
+        // Only resume if the user hasn't muted and is logged in
+        if (enabled && !muted) appMusic.start();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [enabled, muted]);
+
   /** Toggle mute for this device only */
   const toggleMusic = useCallback(() => {
     setMuted((prev) => {

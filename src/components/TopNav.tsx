@@ -52,6 +52,7 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
         <NavLink to="/tables">Tables</NavLink>
         {!isAdmin && <NavLink to="/my-games">My Games</NavLink>}
         {isAdmin && <NavLink to="/teams">Teams</NavLink>}
+        {isAdmin && <NavLink to="/players">Players</NavLink>}
         {isAdmin && <NavLink to="/tournament">Tournament</NavLink>}
         {isAdmin && <NavLink to="/settings">Settings</NavLink>}
       </nav>
@@ -73,10 +74,10 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
 
         {/* User badge → profile link */}
         <Link to="/profile"
-              className="flex items-center gap-2 px-2 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition hover:opacity-80"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-full font-bold transition hover:opacity-80"
               style={isAdmin ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" } : { color: "var(--color-foreground)" }}>
-          <AvatarBadge url={avatarUrl} isAdmin={isAdmin} size={22} />
-          {isAdmin ? "Admin" : "Player"} · {label}
+          <AvatarBadge url={avatarUrl} isAdmin={isAdmin} size={28} />
+          <span className="text-[10px] max-w-[120px] truncate leading-tight">{label}</span>
         </Link>
 
         <button onClick={() => signOut()}
@@ -88,12 +89,12 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
       {/* Mobile: avatar badge + hamburger */}
       <div className="flex md:hidden items-center gap-2 flex-shrink-0">
         <Link to="/profile" onClick={close}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition hover:opacity-80"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-full font-bold transition hover:opacity-80"
               style={isAdmin
                 ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }
                 : { background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)", color: "var(--color-foreground)" }}>
-          <AvatarBadge url={avatarUrl} isAdmin={isAdmin} size={20} />
-          <span className="max-w-[80px] truncate">{label}</span>
+          <AvatarBadge url={avatarUrl} isAdmin={isAdmin} size={26} />
+          <span className="text-[10px] max-w-[90px] truncate leading-tight">{label}</span>
         </Link>
 
         {/* Hamburger */}
@@ -115,6 +116,7 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
                 <MobileNavLink to="/tables" onClick={close}>Tables</MobileNavLink>
                 {!isAdmin && <MobileNavLink to="/my-games" onClick={close}>My Games</MobileNavLink>}
                 {isAdmin && <MobileNavLink to="/teams" onClick={close}>Teams</MobileNavLink>}
+                {isAdmin && <MobileNavLink to="/players" onClick={close}>Players</MobileNavLink>}
                 {isAdmin && <MobileNavLink to="/tournament" onClick={close}>Tournament</MobileNavLink>}
                 {isAdmin && (
                   <MobileNavLink to="/settings" onClick={close}>
@@ -175,7 +177,7 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
     <Link to={to}
           className="px-4 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider text-foreground/75 hover:text-foreground transition"
           activeProps={{
-            className: "px-4 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider text-[oklch(0.18_0.05_150)]",
+            className: "px-4 py-1.5 rounded-full text-sm font-semibold uppercase tracking-wider text-black",
             style: { background: "var(--gradient-gold)" },
           }}
           activeOptions={{ exact: to === "/" }}>
@@ -189,7 +191,7 @@ function MobileNavLink({ to, children, onClick }: { to: string; children: React.
     <Link to={to} onClick={onClick}
           className="flex items-center px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-foreground/75 hover:text-foreground hover:bg-white/8 transition"
           activeProps={{
-            className: "flex items-center px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-[oklch(0.18_0.05_150)]",
+            className: "flex items-center px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider text-black",
             style: { background: "var(--gradient-gold)" },
           }}
           activeOptions={{ exact: to === "/" }}>

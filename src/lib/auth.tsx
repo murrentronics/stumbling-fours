@@ -8,6 +8,7 @@ type Profile = {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  status: string | null;
 };
 
 type AuthState = {

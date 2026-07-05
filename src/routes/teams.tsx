@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { Users, Plus, Trash2, UserMinus, Shield, Search, X } from "lucide-react";
+import { Users, Plus, Trash2, UserMinus, Shield, Search, X, ChevronDown, ChevronUp } from "lucide-react";
 import { type TeamColor, TEAM_COLORS } from "@/lib/store";
 
 export const Route = createFileRoute("/teams")({
@@ -115,6 +115,14 @@ function TeamsPage() {
   const assignedUserIds = new Set(members.map((m) => m.user_id));
 
   const [teamSearch, setTeamSearch] = useState("");
+  const [openTeams, setOpenTeams] = useState<Set<string>>(new Set());
+  const toggleTeam = (id: string) =>
+    setOpenTeams((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
   const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
   const filteredTeams = teamSearch.trim()
     ? sortedTeams.filter((t) => t.name.toLowerCase().includes(teamSearch.toLowerCase()))
@@ -191,26 +199,34 @@ function TeamsPage() {
       )}
 
       {teams.length > 0 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40 pointer-events-none" />
-          <input
-            className="ts-input"
-            style={{ paddingLeft: "2.25rem", paddingRight: teamSearch ? "2.25rem" : undefined }}
-            placeholder="Search teams…"
-            value={teamSearch}
-            onChange={(e) => setTeamSearch(e.target.value)}
-          />
-          {teamSearch && (
-            <button
-              type="button"
-              onClick={() => setTeamSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition"
-              title="Clear"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40 pointer-events-none" />
+            <input
+              className="ts-input"
+              style={{ paddingLeft: "2.25rem", paddingRight: teamSearch ? "2.25rem" : undefined }}
+              placeholder="Search teams…"
+              value={teamSearch}
+              onChange={(e) => setTeamSearch(e.target.value)}
+            />
+            {teamSearch && (
+              <button
+                type="button"
+                onClick={() => setTeamSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition"
+                title="Clear"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="mt-2 text-xs text-foreground/50">
+            {teamSearch.trim()
+              ? <>{filteredTeams.length} of {teams.length} team{teams.length === 1 ? "" : "s"}</>
+              : <>{teams.length} team{teams.length === 1 ? "" : "s"} total</>
+            }
+          </div>
+        </>
       )}
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -219,18 +235,20 @@ function TeamsPage() {
         )}
         {filteredTeams.map((t) => {
           const roster = members.filter((m) => m.team_id === t.id);
+          const isOpen = openTeams.has(t.id);
           return (
             <div
               key={t.id}
-              className="rounded-xl p-5 border-2"
+              className="rounded-xl border-2 overflow-hidden"
               style={{ borderColor: `var(--${t.color})`, background: "oklch(0.18 0.05 150 / 80%)" }}
             >
-              <div className="flex items-center justify-between mb-4">
+              {/* ── Accordion header ── */}
+              <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <div>
                   <div className="font-display font-black text-xl" style={{ color: `var(--${t.color})` }}>
                     {t.name}
                   </div>
-                  <div className="text-[10px] uppercase tracking-widest text-foreground/50">
+                  <div className="text-[10px] uppercase tracking-widest text-foreground/50 mt-0.5">
                     {roster.length} member{roster.length === 1 ? "" : "s"}
                   </div>
                 </div>
@@ -239,41 +257,61 @@ function TeamsPage() {
                 </button>
               </div>
 
-              <div className="space-y-1.5 mb-3">
-                {roster.length === 0 && (
-                  <div className="text-xs italic text-foreground/45">No members yet.</div>
-                )}
-                {roster.map((m) => (
-                  <div key={m.user_id} className="flex items-center justify-between rounded-md px-3 py-2"
-                       style={{ background: "oklch(0.20 0.06 150)" }}>
-                    <div className="text-sm">
-                      <div className="font-bold">{m.display_name}</div>
-                      <div className="text-[10px] text-foreground/50">{m.email}</div>
-                    </div>
-                    <button onClick={() => unassign(t.id, m.user_id)}
-                            className="p-1.5 rounded-md hover:bg-white/5" title="Remove">
-                      <UserMinus className="h-4 w-4 text-foreground/60" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <select
-                className="ts-input"
-                value=""
-                onChange={(e) => e.target.value && assign(t.id, e.target.value)}
+              {/* ── Chevron toggle centered at bottom of header ── */}
+              <button
+                onClick={() => toggleTeam(t.id)}
+                className="w-full flex justify-center items-center py-1.5 hover:bg-white/5 transition"
+                style={{ borderTop: isOpen ? `1px solid oklch(0.83 0.16 88 / 15%)` : "none" }}
+                aria-label={isOpen ? "Collapse" : "Expand"}
               >
-                <option value="">+ Assign a member…</option>
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id} disabled={assignedUserIds.has(p.id)}>
-                    {(p.display_name || p.email.split("@")[0]) + ` (${p.email})`}
-                    {assignedUserIds.has(p.id) ? " · assigned" : ""}
-                  </option>
-                ))}
-              </select>
-              {roster.length > 0 && (
-                <div className="text-[10px] text-foreground/40 text-center pt-1">
-                  {roster.length} member{roster.length === 1 ? "" : "s"} · up to 2 can sit at any one table
+                {isOpen
+                  ? <ChevronUp className="h-4 w-4 text-foreground/40" />
+                  : <ChevronDown className="h-4 w-4 text-foreground/40" />}
+              </button>
+
+              {/* ── Expandable body ── */}
+              {isOpen && (
+                <div
+                  className="px-5 pb-5 pt-3 space-y-3"
+                  style={{ borderTop: `1px solid oklch(0.83 0.16 88 / 15%)` }}
+                >
+                  <div className="space-y-1.5">
+                    {roster.length === 0 && (
+                      <div className="text-xs italic text-foreground/45">No members yet.</div>
+                    )}
+                    {roster.map((m) => (
+                      <div key={m.user_id} className="flex items-center justify-between rounded-md px-3 py-2"
+                           style={{ background: "oklch(0.20 0.06 150)" }}>
+                        <div className="text-sm">
+                          <div className="font-bold">{m.display_name}</div>
+                          <div className="text-[10px] text-foreground/50">{m.email}</div>
+                        </div>
+                        <button onClick={() => unassign(t.id, m.user_id)}
+                                className="p-1.5 rounded-md hover:bg-white/5" title="Remove">
+                          <UserMinus className="h-4 w-4 text-foreground/60" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <select
+                    className="ts-input"
+                    value=""
+                    onChange={(e) => e.target.value && assign(t.id, e.target.value)}
+                  >
+                    <option value="">+ Assign a member…</option>
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id} disabled={assignedUserIds.has(p.id)}>
+                        {(p.display_name || p.email.split("@")[0]) + ` (${p.email})`}
+                        {assignedUserIds.has(p.id) ? " · assigned" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {roster.length > 0 && (
+                    <div className="text-[10px] text-foreground/40 text-center">
+                      {roster.length} member{roster.length === 1 ? "" : "s"} · up to 2 can sit at any one table
+                    </div>
+                  )}
                 </div>
               )}
             </div>

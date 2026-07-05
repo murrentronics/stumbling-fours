@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Spade, Trophy, Users, Zap } from "lucide-react";
+import { Spade, Users, Zap } from "lucide-react";
 import { useApp } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
@@ -28,10 +28,17 @@ function Home() {
                  "radial-gradient(circle at 20% 30%, oklch(0.83 0.16 88 / 40%), transparent 40%), radial-gradient(circle at 80% 70%, oklch(0.62 0.24 25 / 40%), transparent 40%)",
              }} />
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
-               style={{ background: "oklch(0.22 0.07 295)", border: "1px solid oklch(0.83 0.16 88 / 50%)" }}>
-            <Spade className="h-4 w-4" style={{ color: "oklch(0.83 0.16 88)" }} />
-            <span className="font-marquee tracking-[0.4em] text-xs">TRINIDAD · ALL FOURS</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 overflow-hidden relative"
+               style={{ background: "#CE1126", border: "2px solid rgba(255,255,255,0.30)" }}>
+            {/* Trinidad flag: red bg with black diagonal stripe bordered by white */}
+            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 32" aria-hidden="true">
+              {/* white border of stripe */}
+              <polygon points="30,0 56,0 70,32 44,32" fill="white" />
+              {/* black core of stripe */}
+              <polygon points="34,0 52,0 66,32 48,32" fill="black" />
+            </svg>
+            <Spade className="h-4 w-4 relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" style={{ color: "white" }} />
+            <span className="font-marquee tracking-[0.4em] text-xs text-white relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">TRINIDAD · ALL FOURS</span>
           </div>
           <h1 className="font-display font-black text-5xl sm:text-7xl gold-text leading-none">
             Deal. Score. Win.
@@ -53,10 +60,9 @@ function Home() {
       </section>
 
       {/* stat strip */}
-      <section className="grid md:grid-cols-3 gap-4 mt-8">
+      <section className="grid md:grid-cols-2 gap-4 mt-8">
         <StatCard icon={<Zap className="h-5 w-5" />} label="Live Tables" value={String(live)} />
         <StatCard icon={<Users className="h-5 w-5" />} label="Teams Locked In" value={String(tournament?.teams.length ?? 0)} />
-        <StatCard icon={<Trophy className="h-5 w-5" />} label="Tournament" value={tournament?.name ?? "—"} small />
       </section>
 
       {/* rules summary */}

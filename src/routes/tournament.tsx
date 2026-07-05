@@ -201,7 +201,7 @@ function TournamentPage() {
               className="chip-button chip-button-hover disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: "var(--gradient-crimson)", color: "white" }}
             >
-              <Play className="h-4 w-4 mr-2" /> Start Round
+              <Play className="h-4 w-4 mr-2" /> Schedule
             </button>
           </div>
         )}
@@ -403,9 +403,47 @@ function TournamentPage() {
                   {round.map((pair, pi) => (
                     <div key={pi} className="rounded-lg p-3 border"
                          style={{ background: "oklch(0.20 0.06 150)", borderColor: "oklch(0.83 0.16 88 / 30%)" }}>
-                      <div className="text-sm font-bold" style={{ color: pair[0] ? `var(--${pair[0].color})` : "var(--foreground)" }}>{pair[0]?.name ?? "TBD"}</div>
-                      <div className="text-[10px] text-foreground/40 my-1 tracking-widest">VS</div>
-                      <div className="text-sm font-bold" style={{ color: pair[1] ? `var(--${pair[1].color})` : "var(--foreground)" }}>{pair[1]?.name ?? "TBD"}</div>
+                      {/* Table label — only meaningful for round 1 where tables are known */}
+                      {ri === 0 && (
+                        <div className="text-[9px] font-marquee tracking-[0.3em] text-foreground/40 mb-2 pb-1.5 border-b"
+                             style={{ borderColor: "oklch(0.83 0.16 88 / 15%)" }}>
+                          TABLE {pi + 1}
+                        </div>
+                      )}
+
+                      {/* Team A */}
+                      <div className="mb-1">
+                        <div className="text-sm font-bold" style={{ color: pair[0] ? `var(--${pair[0].color})` : "var(--foreground)" }}>
+                          {pair[0]?.name ?? "TBD"}
+                        </div>
+                        {pair[0]?.players && pair[0].players.length > 0 && (
+                          <div className="mt-0.5 space-y-0.5 pl-1">
+                            {pair[0].players.map((p, i) => (
+                              <div key={i} className="text-[10px] text-foreground/55 truncate">
+                                {p.name || p.email.split("@")[0]}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-[10px] text-foreground/40 my-1.5 tracking-widest">VS</div>
+
+                      {/* Team B */}
+                      <div>
+                        <div className="text-sm font-bold" style={{ color: pair[1] ? `var(--${pair[1].color})` : "var(--foreground)" }}>
+                          {pair[1]?.name ?? "TBD"}
+                        </div>
+                        {pair[1]?.players && pair[1].players.length > 0 && (
+                          <div className="mt-0.5 space-y-0.5 pl-1">
+                            {pair[1].players.map((p, i) => (
+                              <div key={i} className="text-[10px] text-foreground/55 truncate">
+                                {p.name || p.email.split("@")[0]}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

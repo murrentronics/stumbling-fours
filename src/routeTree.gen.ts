@@ -14,6 +14,7 @@ import { Route as TeamsRouteImport } from './routes/teams'
 import { Route as TablesRouteImport } from './routes/tables'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PlayersRouteImport } from './routes/players'
 import { Route as MyGamesRouteImport } from './routes/my-games'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -43,6 +44,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayersRoute = PlayersRouteImport.update({
+  id: '/players',
+  path: '/players',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MyGamesRoute = MyGamesRouteImport.update({
   id: '/my-games',
   path: '/my-games',
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/my-games': typeof MyGamesRoute
+  '/players': typeof PlayersRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/tables': typeof TablesRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/my-games': typeof MyGamesRoute
+  '/players': typeof PlayersRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/tables': typeof TablesRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/my-games': typeof MyGamesRoute
+  '/players': typeof PlayersRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/tables': typeof TablesRoute
@@ -92,16 +101,17 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/my-games' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
+  fullPaths: '/' | '/auth' | '/my-games' | '/players' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/my-games' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
-  id: '__root__' | '/' | '/auth' | '/my-games' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
+  to: '/' | '/auth' | '/my-games' | '/players' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
+  id: '__root__' | '/' | '/auth' | '/my-games' | '/players' | '/profile' | '/settings' | '/tables' | '/teams' | '/tournament'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   MyGamesRoute: typeof MyGamesRoute
+  PlayersRoute: typeof PlayersRoute
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRoute
   TablesRoute: typeof TablesRoute
@@ -139,6 +149,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/players': {
+      id: '/players'
+      path: '/players'
+      fullPath: '/players'
+      preLoaderRoute: typeof PlayersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -174,6 +191,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   MyGamesRoute: MyGamesRoute,
+  PlayersRoute: PlayersRoute,
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRoute,
   TablesRoute: TablesRoute,

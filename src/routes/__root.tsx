@@ -21,6 +21,8 @@ import { useRouterState, Navigate } from "@tanstack/react-router";
 import { useRealtimeSync } from "@/lib/realtime";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useMusicSync } from "@/lib/useMusicSync";
+import { supabase } from "@/lib/supabase";
+import { Clock, Ban, ShieldOff, LogOut } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -139,7 +141,7 @@ function RootComponent() {
 }
 
 function AuthGate() {
-  const { session, loading } = useAuth();
+  const { session, loading, isAdmin, profile } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   useRealtimeSync(!!session);
   useWakeLock();
@@ -161,6 +163,9 @@ function AuthGate() {
     return <Navigate to="/" replace />;
   }
 
+  // Non-admin users with pending/suspended/banned status see a blocking overlay
+  const blockedStatus = !isAdmin && session && profile && profile.status !== "active" ? profile.status : null;
+
   return (
     <>
       {session && <TopNav musicPlaying={playing} onToggleMusic={toggleMusic} />}
@@ -170,6 +175,61 @@ function AuthGate() {
       <footer className="px-5 sm:px-8 pb-6 text-center text-xs text-foreground/50 tracking-widest uppercase">
         Stumbling Fours · Built for the Trini All Fours table
       </footer>
+
+      {/* Pending / suspended / banned overlay — blocks entire app for non-admins */}
+      {blockedStatus && <StatusBlockOverlay status={blockedStatus} onSignOut={async () => { await supabase.auth.signOut(); }} />}
     </>
+  );
+}
+
+// ── Status block overlay ──────────────────────────────────────────────────────
+function StatusBlockOverlay({ status, onSignOut }: { status: string; onSignOut: () => void }) {
+  const isPending    = status === "pending";
+  const isSuspended  = status === "suspended";
+  const isBanned     = status === "banned";
+
+  const Icon    = isBanned ? Ban : isSuspended ? ShieldOff : Clock;
+  const title   = isBanned ? "Account Banned" : isSuspended ? "Account Suspended" : "Awaiting Approval";
+  const message = isBanned
+    ? "Your account has been permanently banned. Contact the administrator if you believe this is an error."
+    : isSuspended
+    ? "Your account has been suspended and is pending admin review. You'll be notified once access is restored."
+    : "Your signup is awaiting admin approval. You'll be able to access the app once an admin approves your account.";
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6"
+      style={{ background: "oklch(0 0 0 / 85%)", backdropFilter: "blur(6px)" }}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-8 text-center shadow-2xl"
+        style={{
+          background: "oklch(0.18 0.05 150)",
+          border: `2px solid ${isBanned ? "oklch(0.55 0.22 25 / 60%)" : isSuspended ? "oklch(0.64 0.16 55 / 60%)" : "oklch(0.83 0.16 88 / 40%)"}`,
+        }}
+      >
+        <div
+          className="h-16 w-16 rounded-full grid place-items-center mx-auto mb-4"
+          style={{
+            background: isBanned ? "var(--gradient-crimson)" : isSuspended ? "oklch(0.55 0.18 55)" : "var(--gradient-gold)",
+            color: isBanned || isSuspended ? "white" : "oklch(0.18 0.05 150)",
+          }}
+        >
+          <Icon className="h-7 w-7" />
+        </div>
+
+        <h2 className="font-display font-black text-2xl gold-text mb-2">{title}</h2>
+        <p className="text-sm text-foreground/70 leading-relaxed mb-6">{message}</p>
+
+        <button
+          onClick={onSignOut}
+          className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition"
+          style={{ background: "oklch(0.25 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 25%)", color: "var(--color-foreground)" }}
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </button>
+      </div>
+    </div>
   );
 }

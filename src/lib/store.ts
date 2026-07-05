@@ -73,7 +73,9 @@ export type TeamColor =
   | "team-e"   | "team-f"   | "team-g"   | "team-h"
   | "team-i"   | "team-j"   | "team-k"
   | "team-m"   | "team-n"   | "team-o"   | "team-p"
-  | "team-q"   | "team-r";
+  | "team-q"   | "team-r"
+  | "team-s"   | "team-t"   | "team-u"   | "team-v"
+  | "team-w"   | "team-x"   | "team-y"   | "team-z";
 
 export const TEAM_COLORS: { value: TeamColor; label: string; css: string }[] = [
   { value: "team-a", label: "Crimson",      css: "oklch(0.62 0.22 25)" },
@@ -93,6 +95,14 @@ export const TEAM_COLORS: { value: TeamColor; label: string; css: string }[] = [
   { value: "team-p", label: "Slate",        css: "oklch(0.62 0.08 230)" },
   { value: "team-q", label: "Copper",       css: "oklch(0.64 0.16 55)" },
   { value: "team-r", label: "Violet",       css: "oklch(0.58 0.22 285)" },
+  { value: "team-s", label: "Brown",        css: "oklch(0.48 0.10 55)" },
+  { value: "team-t", label: "Burgundy",     css: "oklch(0.40 0.16 20)" },
+  { value: "team-u", label: "Tan",          css: "oklch(0.74 0.08 75)" },
+  { value: "team-v", label: "Grey",         css: "oklch(0.60 0.01 250)" },
+  { value: "team-w", label: "Cream",        css: "oklch(0.93 0.04 95)" },
+  { value: "team-x", label: "Beige",        css: "oklch(0.86 0.05 85)" },
+  { value: "team-y", label: "White",        css: "oklch(0.97 0.00 0)" },
+  { value: "team-z", label: "Black",        css: "oklch(0.22 0.00 0)" },
 ];
 
 export type Team = {
