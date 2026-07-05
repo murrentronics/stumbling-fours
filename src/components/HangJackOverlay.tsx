@@ -1,6 +1,14 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
+// Pre-load voices as soon as the module loads — Android needs this
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.addEventListener("voiceschanged", () => {
+    window.speechSynthesis.getVoices();
+  });
+}
+
 function playSlap() {
   try {
     const Ctx = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
@@ -43,6 +51,40 @@ function playSlap() {
   }
 }
 
+/** Speak "Hang Jack" in a female voice using Web Speech API */
+function speakHangJack() {
+  try {
+    if (!("speechSynthesis" in window)) return;
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utter = new SpeechSynthesisUtterance("Hang Jack!");
+    utter.rate = 0.85;
+    utter.pitch = 1.4;   // higher pitch = more feminine
+    utter.volume = 1.0;
+
+    // Pick a female voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(v =>
+      v.name.toLowerCase().includes("female") ||
+      v.name.toLowerCase().includes("woman") ||
+      v.name.toLowerCase().includes("samantha") ||
+      v.name.toLowerCase().includes("victoria") ||
+      v.name.toLowerCase().includes("karen") ||
+      v.name.toLowerCase().includes("moira") ||
+      v.name.toLowerCase().includes("zira") ||
+      v.name.toLowerCase().includes("google uk english female") ||
+      v.name.toLowerCase().includes("google us english")
+    );
+    if (femaleVoice) utter.voice = femaleVoice;
+
+    // Delay slightly so it lands when the animation peaks
+    setTimeout(() => window.speechSynthesis.speak(utter), 600);
+  } catch {
+    // ignore speech failures
+  }
+}
+
 export function HangJackOverlay({ flashAt, tableId }: { flashAt?: number; tableId: string }) {
   const [visible, setVisible] = useState(false);
   const lastShown = useRef<number | undefined>(undefined);
@@ -53,6 +95,7 @@ export function HangJackOverlay({ flashAt, tableId }: { flashAt?: number; tableI
     lastShown.current = flashAt;
     setVisible(true);
     playSlap();
+    speakHangJack();
     const hide = setTimeout(() => setVisible(false), 3200);
     // clear from store so switching tabs won't re-fire
     const clear = setTimeout(() => {
