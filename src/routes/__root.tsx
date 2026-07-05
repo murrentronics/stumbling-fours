@@ -92,6 +92,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // On Capacitor/Android the HTML shell already exists in index.capacitor.html.
+  // Rendering <html><head><body> again creates nested document elements that
+  // break WebView native input handling. Only render the full shell on SSR.
+  if (typeof window !== "undefined") {
+    return <>{children}</>;
+  }
   return (
     <html lang="en">
       <head><HeadContent /></head>
