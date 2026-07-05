@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
+import { winnerIsTeamA } from "@/lib/store";
 import { LiveTable } from "@/components/LiveTable";
 import { Check, X, Clock, History, ArrowLeft, Spade, MoreVertical, Trash2, UserX, Search, ChevronDown, ChevronUp, Trophy, Radio, CalendarDays, type LucideIcon, Timer } from "lucide-react";
 
@@ -501,7 +502,8 @@ function PendingTab() {
   return (
     <div className="grid md:grid-cols-2 gap-4">
       {matches.map((m) => {
-        const winner = m.winnerId === m.teamA.id ? m.teamA : m.teamB;
+        const wA = winnerIsTeamA(m);
+        const winner = wA ? m.teamA : m.teamB;
         return (
           <div key={m.id} className="ornate-border p-5">
             <div className="text-xs font-marquee tracking-[0.3em] text-foreground/60 mb-2">{m.tableName} · Awaiting approval</div>
@@ -696,16 +698,16 @@ function TournamentAccordion({
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         {(() => {
-                          const winnerIsA = m.winnerId ? m.winnerId === m.teamA.id : m.scoreA > m.scoreB;
+                          const wA = winnerIsTeamA(m, matchEntries);
                           return (
                             <>
                               <span className="font-display font-black text-xl"
-                                    style={{ color: winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
+                                    style={{ color: wA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
                                 {m.scoreA}
                               </span>
                               <span className="text-foreground/30 text-sm font-bold">—</span>
                               <span className="font-display font-black text-xl"
-                                    style={{ color: !winnerIsA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
+                                    style={{ color: !wA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>
                                 {m.scoreB}
                               </span>
                             </>
@@ -737,20 +739,16 @@ function TournamentAccordion({
 
                     {/* Players */}
                     {(() => {
-                      // Derive winner reliably: prefer winnerId, fall back to higher score
-                      const winnerIsA = m.winnerId
-                        ? m.winnerId === m.teamA.id
-                        : m.scoreA > m.scoreB;
-                      const winnerTeam = winnerIsA ? m.teamA : m.teamB;
-                      const loserTeam  = winnerIsA ? m.teamB : m.teamA;
-                      const winnerScore = winnerIsA ? m.scoreA : m.scoreB;
-                      const loserScore  = winnerIsA ? m.scoreB : m.scoreA;
+                      const wA = winnerIsTeamA(m, matchEntries);
+                      const winnerTeam  = wA ? m.teamA : m.teamB;
+                      const winnerScore = wA ? m.scoreA : m.scoreB;
+                      const loserScore  = wA ? m.scoreB : m.scoreA;
 
                       return (
                         <>
                           <div className="grid grid-cols-2 gap-3 pt-4">
-                            <PlayerCard team={m.teamA} isWinner={winnerIsA} isDQ={m.disqualifiedTeamId === m.teamA.id} />
-                            <PlayerCard team={m.teamB} isWinner={!winnerIsA} isDQ={m.disqualifiedTeamId === m.teamB.id} />
+                            <PlayerCard team={m.teamA} isWinner={wA} isDQ={m.disqualifiedTeamId === m.teamA.id} />
+                            <PlayerCard team={m.teamB} isWinner={!wA} isDQ={m.disqualifiedTeamId === m.teamB.id} />
                           </div>
 
                           {/* Round entries per team */}

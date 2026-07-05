@@ -3,6 +3,71 @@ import { supabase } from "./supabase";
 
 export type Role = "admin" | "player";
 
+/**
+ * Reliably determine which team won a completed match.
+ * Score is the primary source of truth — winnerId alone is not trustworthy
+ * because JSON serialization drops `undefined` values and the field can
+ * disappear after a Supabase snapshot round-trip.
+ *
+ * Tiebreaker (All Fours rules): when scores are equal, the winner is the
+ * team that first scored High, then Low, then Hang Jack, then Game
+ * in the final round's entries (sorted by submission timestamp).
+ *
+ * Returns true if teamA won.
+ */
+export function winnerIsTeamA(
+  match: {
+    scoreA: number;
+    scoreB: number;
+    winnerId?: string;
+    teamA: { id: string };
+    teamB: { id: string };
+    disqualifiedTeamId?: string;
+  },
+  entries?: RoundEntry[],
+): boolean {
+  // DQ: the disqualified team loses
+  if (match.disqualifiedTeamId) {
+    return match.disqualifiedTeamId === match.teamB.id;
+  }
+
+  // Score is primary truth
+  if (match.scoreA !== match.scoreB) {
+    return match.scoreA > match.scoreB;
+  }
+
+  // ── Tied score — All Fours tiebreaker ──────────────────────────────────
+  // Order of precedence: High → Low → Hang Jack → Game
+  // Winner = first team to have scored that category in the final deal
+  if (entries && entries.length > 0) {
+    // Sort all entries by submission time ascending (earliest first)
+    const sorted = [...entries].sort((a, b) => a.ts - b.ts);
+
+    // Check each category in order
+    const categories: ((e: RoundEntry) => boolean)[] = [
+      (e) => e.high,
+      (e) => e.low,
+      (e) => e.jack > 0,   // Hang Jack (3) or Jack (1)
+      (e) => e.game,
+    ];
+
+    for (const hasCategory of categories) {
+      const first = sorted.find(hasCategory);
+      if (first) {
+        return first.teamId === match.teamA.id;
+      }
+    }
+  }
+
+  // Last resort: explicit winnerId
+  if (match.winnerId) {
+    return match.winnerId === match.teamA.id;
+  }
+
+  // Absolute fallback — teamA
+  return true;
+}
+
 export type TeamColor =
   | "team-a"   | "team-b"   | "team-c"   | "team-d"
   | "team-e"   | "team-f"   | "team-g"   | "team-h"

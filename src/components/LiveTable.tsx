@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { useApp, type Match, type Team } from "@/lib/store";
+import { useApp, type Match, type Team, winnerIsTeamA } from "@/lib/store";
 import { HangJackOverlay } from "./HangJackOverlay";
 import { Crown, Spade, Heart, Diamond, Club } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -144,10 +144,17 @@ export function LiveTable({ match }: { match: Match }) {
                 addEntry(entry);
                 const newScore = match.scoreA + entry.total;
                 const reached = newScore >= 14;
+                // Tiebreaker: if both teams hit 14, winner = first to score High→Low→Jack→Game
+                const isTied = reached && match.scoreB >= 14;
+                const allMatchEntries = [...useApp.getState().entries.filter(e => e.matchId === match.id), entry];
+                const winnerIdForTie = isTied
+                  ? (winnerIsTeamA({ ...match, scoreA: newScore, teamA: match.teamA, teamB: match.teamB }, allMatchEntries)
+                      ? match.teamA.id : match.teamB.id)
+                  : match.teamA.id;
                 updateMatch(match.id, {
                   scoreA: newScore,
                   status: reached ? "pending" : "live",
-                  winnerId: reached ? match.teamA.id : undefined,
+                  winnerId: reached ? winnerIdForTie : undefined,
                 });
                 if (entry.jack === 3) triggerHangJack(match.tableId);
               }}
@@ -161,10 +168,17 @@ export function LiveTable({ match }: { match: Match }) {
                 addEntry(entry);
                 const newScore = match.scoreB + entry.total;
                 const reached = newScore >= 14;
+                // Tiebreaker: if both teams hit 14, winner = first to score High→Low→Jack→Game
+                const isTied = reached && match.scoreA >= 14;
+                const allMatchEntries = [...useApp.getState().entries.filter(e => e.matchId === match.id), entry];
+                const winnerIdForTie = isTied
+                  ? (winnerIsTeamA({ ...match, scoreB: newScore, teamA: match.teamA, teamB: match.teamB }, allMatchEntries)
+                      ? match.teamA.id : match.teamB.id)
+                  : match.teamB.id;
                 updateMatch(match.id, {
                   scoreB: newScore,
                   status: reached ? "pending" : "live",
-                  winnerId: reached ? match.teamB.id : undefined,
+                  winnerId: reached ? winnerIdForTie : undefined,
                 });
                 if (entry.jack === 3) triggerHangJack(match.tableId);
               }}
@@ -255,8 +269,8 @@ function NextRoundRoster({ currentMatchId }: { currentMatchId: string }) {
           </div>
         ))}
         {completedThisRound.map((m) => {
-          const winnerIsA = m.winnerId ? m.winnerId === m.teamA.id : m.scoreA > m.scoreB;
-          const winner = winnerIsA ? m.teamA : m.teamB;
+          const wA = winnerIsTeamA(m);
+          const winner = wA ? m.teamA : m.teamB;
           return (
             <div key={m.id}
                  className="rounded-lg px-3 py-2 flex items-center gap-2"
@@ -269,7 +283,7 @@ function NextRoundRoster({ currentMatchId }: { currentMatchId: string }) {
               <span className="text-[10px] text-foreground/50">Winner:</span>
               <span className="font-display font-bold text-xs" style={{ color: `var(--${winner.color})` }}>{winner.name}</span>
               <span className="font-display font-black text-sm gold-text ml-auto flex-shrink-0">
-                {winnerIsA ? m.scoreA : m.scoreB}–{winnerIsA ? m.scoreB : m.scoreA}
+                {wA ? m.scoreA : m.scoreB}–{wA ? m.scoreB : m.scoreA}
               </span>
             </div>
           );

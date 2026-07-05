@@ -5,7 +5,7 @@ import {
   Gamepad2, Trophy, X as XIcon, ChevronDown, ChevronUp,
   ArrowLeft, Spade, Users, Star, TrendingDown, CalendarDays,
 } from "lucide-react";
-import { useApp, type Match } from "@/lib/store";
+import { useApp, type Match, winnerIsTeamA } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { LiveTable } from "@/components/LiveTable";
 
@@ -32,37 +32,17 @@ function toISODate(ts: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Returns whether the current user's team won this match.
- *  Checks both team player emails. If email is missing/empty on both sides,
- *  falls back to pure score comparison (winner = higher score). */
-function didIWin(match: Match, email: string): boolean {
+/** Returns whether the current user's team won this match. */
+function didIWin(match: Match, email: string, entries?: import("@/lib/store").RoundEntry[]): boolean {
   const emailLower = email.toLowerCase();
+  const inA = match.teamA.players.some((p) => p.email && p.email.toLowerCase() === emailLower);
+  const inB = match.teamB.players.some((p) => p.email && p.email.toLowerCase() === emailLower);
 
-  const inA = match.teamA.players.some(
-    (p) => p.email && p.email.toLowerCase() === emailLower
-  );
-  const inB = match.teamB.players.some(
-    (p) => p.email && p.email.toLowerCase() === emailLower
-  );
+  const wA = winnerIsTeamA(match, entries);
 
-  // If we can't find the user's email on either team (empty email in roster),
-  // fall back to score — whoever scored more wins
-  if (!inA && !inB) {
-    // Can't determine which team — show as win only if scoreA > scoreB
-    // (we at least know they were in the match, so pick the higher score as "theirs")
-    return match.scoreA > match.scoreB;
-  }
-
-  const myScore  = inA ? match.scoreA : match.scoreB;
-  const oppScore = inA ? match.scoreB : match.scoreA;
-  const myTeamId = inA ? match.teamA.id : match.teamB.id;
-
-  // Prefer explicit winnerId
-  if (match.winnerId) {
-    return match.winnerId === myTeamId;
-  }
-  // Fall back to score
-  return myScore > oppScore;
+  if (inA) return wA;
+  if (inB) return !wA;
+  return false;
 }
 
 function getMyTeamAndOpponent(match: Match, email: string) {
@@ -85,6 +65,7 @@ function MyGamesPage() {
   const { user } = useAuth();
   const email = user?.email ?? "";
   const allMatches = useApp((s) => s.matches);
+  const allEntries = useApp((s) => s.entries);
   const [view, setView] = useState<View>("cards");
 
   const myMatches = useMemo(
@@ -107,13 +88,17 @@ function MyGamesPage() {
   );
 
   const wins = useMemo(
-    () => completedMatches.filter((m) => didIWin(m, email)),
-    [completedMatches, email],
+    () => completedMatches.filter((m) =>
+      didIWin(m, email, allEntries.filter((e) => e.matchId === m.id))
+    ),
+    [completedMatches, email, allEntries],
   );
 
   const losses = useMemo(
-    () => completedMatches.filter((m) => !didIWin(m, email)),
-    [completedMatches, email],
+    () => completedMatches.filter((m) =>
+      !didIWin(m, email, allEntries.filter((e) => e.matchId === m.id))
+    ),
+    [completedMatches, email, allEntries],
   );
 
   if (view === "wins") return <GameListPage title="Games Won" matches={wins} email={email} variant="win" onBack={() => setView("cards")} />;
