@@ -1214,3 +1214,88 @@ function Empty({ icon, title }: { icon: React.ReactNode; title: string; body?: s
     </div>
   );
 }
+
+// ── Exported shared tab view — used by both /tables (users) and /tournament (admin) ──
+
+export function TournamentTabsView() {
+  const role        = useApp((s) => s.role);
+  const allMatches  = useApp((s) => s.matches);
+  const tournament  = useApp((s) => s.tournament);
+  const [tab, setTab] = useState<Tab>("live");
+
+  const liveCount     = allMatches.filter((m) => m.status === "live" || m.status === "pending").length;
+  const upcomingCount = tournament?.scheduledDate && tournament.scheduledDate > Date.now() ? 1 : 0;
+  const historyCount  = allMatches.filter((m) => m.status === "completed").length;
+  const pendingCount  = allMatches.filter((m) => m.status === "pending").length;
+
+  const counts: Record<Tab, number> = {
+    live: liveCount, upcoming: upcomingCount, history: historyCount, pending: pendingCount,
+  };
+
+  const baseTabs: TabDef[] = [
+    { id: "live",     label: "Live",     icon: Radio   },
+    { id: "upcoming", label: "Upcoming", icon: Timer   },
+    { id: "history",  label: "Past",     icon: History },
+  ];
+
+  return (
+    <div className="space-y-2">
+      {/* Sub-tab strip */}
+      <div className="flex items-center gap-1 p-1.5 rounded-full w-full"
+           style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
+        {baseTabs.map((t) => {
+          const active = tab === t.id;
+          const count  = counts[t.id];
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 font-bold uppercase tracking-widest transition text-xs min-w-0
+                ${active ? "text-black" : "text-foreground/70"}`}
+              style={active ? { background: "var(--gradient-gold)" } : {}}
+            >
+              <span className="truncate">{t.label}</span>
+              {count > 0 && (
+                <span className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"
+                      style={{ background: active ? "rgba(0,0,0,0.2)" : "oklch(0.83 0.16 88 / 25%)", color: active ? "black" : "oklch(0.83 0.16 88)" }}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Admin-only Pending button */}
+      {role === "admin" && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setTab("pending")}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-bold uppercase tracking-widest text-xs transition
+              ${tab === "pending" ? "text-white" : "text-foreground/70"}`}
+            style={tab === "pending"
+              ? { background: "var(--gradient-crimson)" }
+              : { background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}
+          >
+            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>Pending</span>
+            {pendingCount > 0 && (
+              <span className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"
+                    style={{ background: tab === "pending" ? "rgba(255,255,255,0.3)" : "var(--gradient-crimson)", color: "white" }}>
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="pt-2">
+        {tab === "live"     && <LiveTab />}
+        {tab === "upcoming" && <UpcomingTab />}
+        {tab === "history"  && <HistoryTab />}
+        {tab === "pending"  && role === "admin" && <PendingTab />}
+      </div>
+    </div>
+  );
+}

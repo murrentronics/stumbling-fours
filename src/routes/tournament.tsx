@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useApp, type Team, type Match, type TeamColor, winnerIsTeamA } from "@/lib/store";
+import { useApp, type Team, type Match, type TeamColor } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { Trophy, Plus, Trash2, Shuffle, Medal, Play, ChevronDown, ChevronUp, History } from "lucide-react";
+import { Trophy, Plus, Trash2, Shuffle, Medal, Play } from "lucide-react";
+import { TournamentTabsView } from "./tables";
 
 type RosterTeam = { id: string; name: string; color: TeamColor };
 type RosterMember = { team_id: string; user_id: string; display_name: string; email: string | null };
@@ -33,11 +34,11 @@ function TournamentPage() {
   const setMatches = useApp((s) => s.setMatches);
   const existingMatches = useApp((s) => s.matches);
 
-  const [name, setName] = useState(tournament?.name ?? "Stumbling Fours Cup");
+  const [name, setName] = useState(tournament?.name ?? "");
   const [pp, setPp] = useState(tournament?.playersPerTeam ?? 2);
-  const [first, setFirst] = useState(tournament?.prizes.first ?? "Trophy + $1000");
-  const [second, setSecond] = useState(tournament?.prizes.second ?? "$400");
-  const [third, setThird] = useState(tournament?.prizes.third ?? "$200");
+  const [first, setFirst] = useState(tournament?.prizes.first ?? "");
+  const [second, setSecond] = useState(tournament?.prizes.second ?? "");
+  const [third, setThird] = useState(tournament?.prizes.third ?? "");
 
   // Scheduled date — stored as YYYY-MM-DDTHH:mm for the datetime-local input
   const toInputVal = (ts?: number) => {
@@ -417,8 +418,8 @@ function TournamentPage() {
         </>
       )}
 
-      {/* ── Tournaments history tab ─────────────────────────────────────── */}
-      {tournTab === "history" && <TournamentsHistoryTab />}
+      {/* ── Tournaments tab ─────────────────────────────────────────── */}
+      {tournTab === "history" && <TournamentTabsView />}
 
       <style>{`
         .ts-input {
@@ -487,250 +488,3 @@ function generateBracket(teams: Team[]): (Team | undefined)[][][] {
   return rounds;
 }
 
-// ── Tournaments History Tab ────────────────────────────────────────────────────
-
-function TournamentsHistoryTab() {
-  const allMatches = useApp((s) => s.matches);
-  const allEntries = useApp((s) => s.entries);
-
-  const completed = allMatches.filter((m) => m.status === "completed");
-
-  if (completed.length === 0) {
-    return (
-      <div className="ornate-border p-12 text-center">
-        <div className="h-14 w-14 mx-auto rounded-full grid place-items-center mb-3"
-             style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}>
-          <History className="h-6 w-6" />
-        </div>
-        <div className="font-display font-bold text-xl gold-text">No completed tournaments yet</div>
-        <div className="text-sm text-foreground/55 mt-1">Completed games will appear here grouped by tournament.</div>
-      </div>
-    );
-  }
-
-  const fmtDate = (ts: number) =>
-    new Date(ts).toLocaleDateString("en-TT", { day: "numeric", month: "short", year: "numeric" });
-
-  // Group by tournamentId
-  const groups = new Map<string, { id: string; name: string; matches: typeof completed }>();
-  for (const m of completed) {
-    const tid   = m.tournamentId   ?? "legacy";
-    const tname = m.tournamentName ?? "Tournament";
-    if (!groups.has(tid)) groups.set(tid, { id: tid, name: tname, matches: [] });
-    groups.get(tid)!.matches.push(m);
-  }
-
-  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
-    const latestA = Math.max(...a.matches.map((m) => m.startedAt));
-    const latestB = Math.max(...b.matches.map((m) => m.startedAt));
-    return latestB - latestA;
-  });
-
-  return (
-    <div className="space-y-4">
-      {sortedGroups.map((grp) => {
-        const timestamps = grp.matches.map((m) => m.startedAt);
-        const minTs = Math.min(...timestamps);
-        const maxTs = Math.max(...timestamps);
-        const dateRange = minTs === maxTs ? fmtDate(minTs) : `${fmtDate(minTs)} – ${fmtDate(maxTs)}`;
-        const maxRound = Math.max(...grp.matches.map((m) => m.round));
-        const sorted = [...grp.matches].sort((a, b) =>
-          b.round !== a.round ? b.round - a.round : b.startedAt - a.startedAt
-        );
-        return (
-          <THistoryAccordion
-            key={grp.id}
-            name={grp.name}
-            dateRange={dateRange}
-            matches={sorted}
-            maxRound={maxRound}
-            allEntries={allEntries}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-type THistoryEntry = import("@/lib/store").RoundEntry;
-type THistoryMatch = import("@/lib/store").Match;
-
-function THistoryAccordion({
-  name, dateRange, matches, maxRound, allEntries,
-}: {
-  name: string;
-  dateRange: string;
-  matches: THistoryMatch[];
-  maxRound: number;
-  allEntries: THistoryEntry[];
-}) {
-  const [open, setOpen] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  return (
-    <div className="ornate-border overflow-hidden">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center gap-4 p-5 text-left"
-        style={{ background: "oklch(0.20 0.06 150 / 60%)" }}
-      >
-        <div className="h-10 w-10 rounded-full grid place-items-center flex-shrink-0"
-             style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}>
-          <Trophy className="h-5 w-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-display font-black text-base gold-text leading-snug">{name}</div>
-          <div className="font-marquee text-xs tracking-[0.25em] text-foreground/55 mt-0.5">{dateRange}</div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs text-foreground/50">{matches.length} games</span>
-          {open ? <ChevronUp className="h-4 w-4 text-foreground/50" /> : <ChevronDown className="h-4 w-4 text-foreground/50" />}
-        </div>
-      </button>
-
-      {open && (
-        <div className="divide-y" style={{ borderColor: "oklch(0.83 0.16 88 / 15%)" }}>
-          {matches.map((m) => {
-            const isFinal   = m.round === maxRound;
-            const isExpanded = expandedId === m.id;
-            const matchEntries = allEntries.filter((e) => e.matchId === m.id);
-            const roundLabel = getRoundLabel(m.round, maxRound);
-            const entriesA = matchEntries.filter((e) => e.teamId === m.teamA.id);
-            const entriesB = matchEntries.filter((e) => e.teamId === m.teamB.id);
-
-            return (
-              <div key={m.id} style={{ borderColor: "oklch(0.83 0.16 88 / 15%)" }}>
-                <button
-                  onClick={() => setExpandedId(isExpanded ? null : m.id)}
-                  className="w-full text-left transition-all active:scale-[0.99]"
-                  style={{
-                    background: isExpanded ? "oklch(0.22 0.06 150)" : isFinal ? "oklch(0.83 0.16 88 / 6%)" : "oklch(0.18 0.05 150 / 60%)",
-                    borderBottom: isExpanded ? "none" : "1px solid oklch(0.83 0.16 88 / 10%)",
-                  }}
-                >
-                  <div className="px-4 py-3.5">
-                    <div className="flex items-center gap-2 mb-2.5">
-                      {isFinal ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex-shrink-0"
-                              style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}>★ Final</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
-                              style={{ background: "oklch(0.25 0.06 150)", color: "var(--color-foreground)", opacity: 0.7 }}>{roundLabel}</span>
-                      )}
-                      <span className="text-[10px] text-foreground/35 flex-shrink-0">
-                        {new Date(m.startedAt).toLocaleDateString("en-TT", { day: "numeric", month: "short" })} · {m.tableName}
-                      </span>
-                      <div className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full flex-shrink-0"
-                           style={{ background: isExpanded ? "oklch(0.83 0.16 88 / 20%)" : "oklch(0.83 0.16 88 / 10%)", border: "1px solid oklch(0.83 0.16 88 / 30%)", color: "oklch(0.83 0.16 88)" }}>
-                        <span className="text-[9px] font-bold uppercase tracking-wider">{isExpanded ? "Close" : "Details"}</span>
-                        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--${m.teamA.color})` }} />
-                          <span className="font-display font-bold text-sm truncate" style={{ color: `var(--${m.teamA.color})` }}>{m.teamA.name}</span>
-                          {m.disqualifiedTeamId === m.teamA.id && <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: "oklch(0.55 0.22 25 / 25%)", color: "oklch(0.75 0.18 25)" }}>DQ</span>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {(() => { const wA = winnerIsTeamA(m, matchEntries); return (<>
-                          <span className="font-display font-black text-xl" style={{ color: wA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>{m.scoreA}</span>
-                          <span className="text-foreground/30 text-sm font-bold">—</span>
-                          <span className="font-display font-black text-xl" style={{ color: !wA ? "oklch(0.83 0.16 88)" : "var(--color-foreground)" }}>{m.scoreB}</span>
-                        </>); })()}
-                      </div>
-                      <div className="flex-1 min-w-0 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {m.disqualifiedTeamId === m.teamB.id && <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: "oklch(0.55 0.22 25 / 25%)", color: "oklch(0.75 0.18 25)" }}>DQ</span>}
-                          <span className="font-display font-bold text-sm truncate" style={{ color: `var(--${m.teamB.color})` }}>{m.teamB.name}</span>
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--${m.teamB.color})` }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-
-                {isExpanded && (() => {
-                  const wA = winnerIsTeamA(m, matchEntries);
-                  const winnerTeam  = wA ? m.teamA : m.teamB;
-                  const winnerScore = wA ? m.scoreA : m.scoreB;
-                  const loserScore  = wA ? m.scoreB : m.scoreA;
-                  return (
-                    <div className="px-4 pb-5 space-y-4" style={{ background: "oklch(0.15 0.04 150 / 80%)", borderTop: "1px solid oklch(0.83 0.16 88 / 12%)" }}>
-                      <div className="grid grid-cols-2 gap-3 pt-4">
-                        {[{ team: m.teamA, isWinner: wA, isDQ: m.disqualifiedTeamId === m.teamA.id },
-                          { team: m.teamB, isWinner: !wA, isDQ: m.disqualifiedTeamId === m.teamB.id }].map(({ team, isWinner, isDQ }) => (
-                          <div key={team.id} className="rounded-xl p-3 space-y-1.5"
-                               style={{ background: "oklch(0.18 0.05 150 / 80%)", border: `1px solid var(--${team.color})`, opacity: isDQ ? 0.6 : 1 }}>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: `var(--${team.color})` }} />
-                              <span className="font-display font-bold text-xs truncate" style={{ color: `var(--${team.color})` }}>{team.name}</span>
-                              {isWinner && <span className="ml-auto text-[10px] gold-text font-black flex-shrink-0">★ Won</span>}
-                              {isDQ && <span className="ml-auto text-[10px] font-bold flex-shrink-0" style={{ color: "oklch(0.75 0.18 25)" }}>DQ</span>}
-                            </div>
-                            {team.players.map((p) => (
-                              <div key={p.email} className="text-[11px] text-foreground/65 truncate pl-0.5">{p.name || p.email.split("@")[0]}</div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                      {matchEntries.length > 0 && (
-                        <div className="grid grid-cols-2 gap-3">
-                          {[{ entries: entriesA, team: m.teamA }, { entries: entriesB, team: m.teamB }].map(({ entries, team }) => (
-                            <div key={team.id} className="space-y-1.5">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] uppercase tracking-[0.2em] font-bold truncate" style={{ color: `var(--${team.color})` }}>{team.name}</span>
-                                <span className="text-[10px] text-foreground/45 flex-shrink-0 ml-1">{entries.reduce((s,e)=>s+e.total,0)} pts</span>
-                              </div>
-                              {entries.map((e) => (
-                                <div key={e.id} className="rounded-lg px-2.5 py-2 flex items-center justify-between gap-2"
-                                     style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 15%)" }}>
-                                  <div className="flex items-center gap-1 flex-wrap min-w-0">
-                                    {[e.high&&{l:"H",r:false},e.low&&{l:"L",r:false},e.jack===3&&{l:"HJ",r:true},e.jack===1&&{l:"J",r:false},e.game&&{l:"G",r:false}]
-                                      .filter(Boolean).map((b: any) => (
-                                      <span key={b.l} className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase"
-                                            style={{ background: b.r ? "var(--gradient-crimson)" : "oklch(0.83 0.16 88 / 20%)", color: b.r ? "white" : "oklch(0.83 0.16 88)" }}>{b.l}</span>
-                                    ))}
-                                  </div>
-                                  <span className="font-display font-black text-sm flex-shrink-0 gold-text">+{e.total}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
-                        <div className="p-3 flex items-center justify-between gap-3" style={{ background: "oklch(0.20 0.06 150)" }}>
-                          <div className="text-xs font-bold uppercase tracking-wider" style={{ color: `var(--${winnerTeam.color})` }}>{winnerTeam.name} wins</div>
-                          <div className="font-display font-black text-2xl gold-text flex-shrink-0">{winnerScore} — {loserScore}</div>
-                        </div>
-                        {m.disqualifiedTeamId && (
-                          <div className="flex items-center gap-2 px-3 py-2" style={{ background: "oklch(0.55 0.22 25 / 12%)", borderTop: "1px solid oklch(0.55 0.22 25 / 25%)" }}>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex-shrink-0" style={{ background: "var(--gradient-crimson)", color: "white" }}>DQ</span>
-                            <span className="text-[11px] text-foreground/60">
-                              {m.disqualifiedTeamId === m.teamA.id ? m.teamA.name : m.teamB.name} was disqualified — opponent awarded the win
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function getRoundLabel(round: number, maxRound: number): string {
-  const remaining = maxRound - round;
-  if (remaining === 0) return "Final";
-  if (remaining === 1) return "Semifinal";
-  if (remaining === 2) return "Quarterfinal";
-  return `Round ${round}`;
-}

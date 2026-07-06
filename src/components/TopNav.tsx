@@ -46,10 +46,10 @@ export function TopNav({}: TopNavProps) {
       <nav className="hidden md:flex items-center gap-1 rounded-full p-1.5 flex-shrink-0"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         <NavLink to="/">Home</NavLink>
-        <NavLink to="/tables">Tables</NavLink>
         <NavLink to="/league">Teams</NavLink>
+        {!isAdmin && <NavLink to="/tables">Tournament</NavLink>}
         {!isAdmin && <NavLink to="/my-games">My Games</NavLink>}
-        {isAdmin && <NavLink to="/teams">Teams (Admin)</NavLink>}
+        {isAdmin && <NavLink to="/teams">Teams</NavLink>}
         {isAdmin && <NavLink to="/players">Players</NavLink>}
         {isAdmin && <NavLink to="/tournament">Tournament</NavLink>}
         {isAdmin && <NavLink to="/settings">Settings</NavLink>}
@@ -99,10 +99,10 @@ export function TopNav({}: TopNavProps) {
                  style={{ background: "oklch(0.18 0.05 150)", border: "2px solid oklch(0.83 0.16 88 / 35%)" }}>
               <div className="p-2 space-y-0.5">
                 <MobileNavLink to="/" onClick={close}>Home</MobileNavLink>
-                <MobileNavLink to="/tables" onClick={close}>Tables</MobileNavLink>
                 <MobileNavLink to="/league" onClick={close}>Teams</MobileNavLink>
+                {!isAdmin && <MobileNavLink to="/tables" onClick={close}>Tournament</MobileNavLink>}
                 {!isAdmin && <MobileNavLink to="/my-games" onClick={close}>My Games</MobileNavLink>}
-                {isAdmin && <MobileNavLink to="/teams" onClick={close}>Teams (Admin)</MobileNavLink>}
+                {isAdmin && <MobileNavLink to="/teams" onClick={close}>Teams</MobileNavLink>}
                 {isAdmin && <MobileNavLink to="/players" onClick={close}>Players</MobileNavLink>}
                 {isAdmin && <MobileNavLink to="/tournament" onClick={close}>Tournament</MobileNavLink>}
                 {isAdmin && (

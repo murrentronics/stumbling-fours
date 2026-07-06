@@ -51,17 +51,29 @@ function PlayersPage() {
     const [{ data: p }, { data: b }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id,email,display_name,avatar_url,status,created_at")
+        .select("id,email,display_name,avatar_url,created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("banned_emails")
         .select("id,email,banned_at,reason")
         .order("banned_at", { ascending: false }),
     ]);
-    setPlayers(((p as Player[]) ?? [])
-      .filter((pl) => pl.id !== user?.id)
-      // Treat null/missing status (pre-migration users) as active
-      .map((pl) => ({ ...pl, status: (pl.status ?? "active") as PlayerStatus }))
+
+    // Fetch status separately — the column may not exist yet in all environments
+    const { data: statusRows } = await supabase
+      .from("profiles")
+      .select("id,status");
+    const statusMap = new Map<string, string>(
+      (statusRows ?? []).map((r: { id: string; status: string | null }) => [r.id, r.status ?? "active"])
+    );
+
+    setPlayers(
+      ((p as Omit<Player, "status">[]) ?? [])
+        .filter((pl) => pl.id !== user?.id)
+        .map((pl) => ({
+          ...pl,
+          status: (statusMap.get(pl.id) ?? "active") as PlayerStatus,
+        }))
     );
     setBannedEmails((b as BannedEmail[]) ?? []);
   };

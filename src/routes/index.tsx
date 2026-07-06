@@ -53,7 +53,6 @@ function Home() {
             the first All Fours app built for proper Trini tournament nights.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/tables" className="chip-button chip-button-hover">Enter the Tables</Link>
             {role === "admin" && (
               <Link to="/tournament" className="chip-button chip-button-hover"
                     style={{ background: "var(--gradient-crimson)", color: "white" }}>
