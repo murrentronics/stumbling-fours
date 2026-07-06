@@ -2,9 +2,10 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { useApp, type Match, type Team, winnerIsTeamA } from "@/lib/store";
 import { HangJackOverlay } from "./HangJackOverlay";
-import { Crown, Spade, Heart, Diamond, Club } from "lucide-react";
+import { Crown, Spade, Heart, Diamond, Club, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { appMusic } from "@/lib/appMusic";
+import { Link } from "@tanstack/react-router";
 
 /** Fetch avatar_url for a player by email — cached in module scope */
 const avatarCache = new Map<string, string | null>();
@@ -89,6 +90,13 @@ export function LiveTable({ match }: { match: Match }) {
   const onTeamB = match.teamB.players.some((p) => p.email?.toLowerCase() === emailLower);
   const onAnyTeam = onTeamA || onTeamB;
 
+  const isPending = match.status === "pending";
+
+  // Determine winner name for pending state
+  const pendingWinner = isPending
+    ? (match.winnerId === match.teamA.id ? match.teamA : match.teamB)
+    : null;
+
   return (
     <div className="ornate-border relative overflow-hidden">
       <HangJackOverlay flashAt={flash} tableId={match.tableId} />
@@ -98,18 +106,23 @@ export function LiveTable({ match }: { match: Match }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="px-3 py-1 rounded-full font-marquee tracking-[0.3em] text-sm"
-                 style={{ background: "var(--gradient-crimson)", color: "oklch(0.97 0.02 90)" }}>
+                 style={{ background: isPending ? "oklch(0.55 0.18 145)" : "var(--gradient-crimson)", color: "oklch(0.97 0.02 90)" }}>
               {match.tableName}
             </div>
             <span className="text-xs uppercase tracking-widest text-foreground/60">Round {match.round}</span>
           </div>
-          <LivePulse />
+          {isPending
+            ? <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+                   style={{ background: "oklch(0.55 0.18 145 / 20%)", border: "1px solid oklch(0.55 0.18 145 / 50%)", color: "oklch(0.75 0.16 145)" }}>
+                <Lock className="h-3.5 w-3.5" /> Awaiting approval
+              </div>
+            : <LivePulse />
+          }
         </div>
 
         {/* the felt table */}
-        <div className="felt-surface relative rounded-[140px] aspect-[16/9] max-w-3xl mx-auto p-6 sm:p-10
-                        border-[6px]"
-             style={{ borderColor: "oklch(0.45 0.10 60)" }}>
+        <div className="felt-surface relative rounded-[140px] aspect-[16/9] max-w-3xl mx-auto p-6 sm:p-10 border-[6px]"
+             style={{ borderColor: isPending ? "oklch(0.55 0.18 145)" : "oklch(0.45 0.10 60)" }}>
           {/* center logo */}
           <div className="absolute inset-0 grid place-items-center pointer-events-none">
             <div className="text-center opacity-25">
@@ -117,6 +130,20 @@ export function LiveTable({ match }: { match: Match }) {
               <div className="font-display font-black tracking-widest text-2xl mt-1 gold-text">SF</div>
             </div>
           </div>
+
+          {/* Pending lock overlay on the felt */}
+          {isPending && (
+            <div className="absolute inset-0 rounded-[130px] z-20 flex flex-col items-center justify-center gap-2"
+                 style={{ background: "oklch(0 0 0 / 65%)", backdropFilter: "blur(2px)" }}>
+              <Lock className="h-10 w-10 text-white/80" />
+              <div className="font-display font-black text-lg text-white/90 tracking-wide">Table Locked</div>
+              {pendingWinner && (
+                <div className="text-sm text-white/60 mt-0.5">
+                  <span style={{ color: `var(--${pendingWinner.color})` }}>{pendingWinner.name}</span> reached 14 — pending approval
+                </div>
+              )}
+            </div>
+          )}
 
           {/* score */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10
@@ -128,169 +155,224 @@ export function LiveTable({ match }: { match: Match }) {
           </div>
 
           {/* 4 player seats */}
-          {match.teamA.players[0] && <Seat pos="top-left" player={match.teamA.players[0]} team={match.teamA} />}
+          {match.teamA.players[0] && <Seat pos="top-left"     player={match.teamA.players[0]} team={match.teamA} />}
           {match.teamA.players[1] && <Seat pos="bottom-right" player={match.teamA.players[1]} team={match.teamA} />}
-          {match.teamB.players[0] && <Seat pos="top-right" player={match.teamB.players[0]} team={match.teamB} />}
-          {match.teamB.players[1] && <Seat pos="bottom-left" player={match.teamB.players[1]} team={match.teamB} />}
+          {match.teamB.players[0] && <Seat pos="top-right"    player={match.teamB.players[0]} team={match.teamB} />}
+          {match.teamB.players[1] && <Seat pos="bottom-left"  player={match.teamB.players[1]} team={match.teamB} />}
         </div>
 
-        {/* score entry — scorer for each team sees their panel; everyone else spectates */}
-        <div className="mt-6 grid md:grid-cols-2 gap-4">
-          {canScoreA && (
-            <ScoreEntry
-              match={match}
-              team={match.teamA}
-              onSubmit={(entry) => {
-                addEntry(entry);
-                const newScore = match.scoreA + entry.total;
-                const reached = newScore >= 14;
-                // Tiebreaker: if both teams hit 14, winner = first to score High→Low→Jack→Game
-                const isTied = reached && match.scoreB >= 14;
-                const allMatchEntries = [...useApp.getState().entries.filter(e => e.matchId === match.id), entry];
-                const winnerIdForTie = isTied
-                  ? (winnerIsTeamA({ ...match, scoreA: newScore, teamA: match.teamA, teamB: match.teamB }, allMatchEntries)
-                      ? match.teamA.id : match.teamB.id)
-                  : match.teamA.id;
-                updateMatch(match.id, {
-                  scoreA: newScore,
-                  status: reached ? "pending" : "live",
-                  winnerId: reached ? winnerIdForTie : undefined,
-                });
-                if (entry.jack === 3) triggerHangJack(match.tableId);
-              }}
-            />
-          )}
-          {canScoreB && (
-            <ScoreEntry
-              match={match}
-              team={match.teamB}
-              onSubmit={(entry) => {
-                addEntry(entry);
-                const newScore = match.scoreB + entry.total;
-                const reached = newScore >= 14;
-                // Tiebreaker: if both teams hit 14, winner = first to score High→Low→Jack→Game
-                const isTied = reached && match.scoreA >= 14;
-                const allMatchEntries = [...useApp.getState().entries.filter(e => e.matchId === match.id), entry];
-                const winnerIdForTie = isTied
-                  ? (winnerIsTeamA({ ...match, scoreB: newScore, teamA: match.teamA, teamB: match.teamB }, allMatchEntries)
-                      ? match.teamA.id : match.teamB.id)
-                  : match.teamB.id;
-                updateMatch(match.id, {
-                  scoreB: newScore,
-                  status: reached ? "pending" : "live",
-                  winnerId: reached ? winnerIdForTie : undefined,
-                });
-                if (entry.jack === 3) triggerHangJack(match.tableId);
-              }}
-            />
-          )}
-          {!canScoreA && !canScoreB && (
-            <div className="md:col-span-2 text-center text-sm text-foreground/50 italic py-4">
-              {onAnyTeam
-                ? "Another player on your team is the scorer for this round."
-                : "You are spectating this table."}
+        {/* score entry OR locked message */}
+        {isPending ? (
+          <div className="mt-6 rounded-xl p-5 flex flex-col items-center gap-3 text-center"
+               style={{ background: "oklch(0.18 0.05 150 / 80%)", border: "1px solid oklch(0.55 0.18 145 / 40%)" }}>
+            <Lock className="h-6 w-6" style={{ color: "oklch(0.75 0.16 145)" }} />
+            <div className="font-display font-black text-lg"
+                 style={{ color: "oklch(0.75 0.16 145)" }}>
+              Scoring Disabled
             </div>
-          )}
-        </div>
-
-        {/* recent entries */}
-        <div className="mt-5">
-          <div className="text-xs uppercase tracking-[0.3em] text-foreground/60 mb-2">Recent rounds</div>
-          <div className="flex flex-wrap gap-2">
-            {entries.length === 0 && (
-              <div className="text-sm text-foreground/50 italic">No rounds entered yet.</div>
-            )}
-            {entries.map((e) => (
-              <div key={e.id} className="rounded-md px-3 py-1.5 text-xs flex items-center gap-2"
-                   style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 25%)" }}>
-                <span className="font-bold" style={{ color: `var(--${e.teamId === match.teamA.id ? match.teamA.color : match.teamB.color})` }}>
-                  {e.teamName}
-                </span>
-                <span className="text-foreground/70">+{e.total}</span>
-                <span className="text-foreground/40">
-                  {[e.high && "H", e.low && "L", e.jack === 3 ? "HJ" : e.jack === 1 ? "J" : null, e.game && "G"]
-                    .filter(Boolean).join(" · ")}
-                </span>
-              </div>
-            ))}
+            <p className="text-sm text-foreground/60 max-w-xs">
+              A team has reached 14 points. The admin must approve or reject the result before play continues.
+            </p>
+            <Link
+              to="/tables"
+              search={{ tab: "history" } as never}
+              className="mt-1 chip-button chip-button-hover text-sm"
+              style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}
+            >
+              View Game Stats in History
+            </Link>
           </div>
-        </div>
+        ) : (
+          /* score entry — scorer for each team sees their panel; everyone else spectates */
+          <div className="mt-6 grid md:grid-cols-2 gap-4">
+            {canScoreA && (
+              <ScoreEntry
+                match={match}
+                team={match.teamA}
+                onSubmit={(entry) => {
+                  addEntry(entry);
+                  const newScore = match.scoreA + entry.total;
+                  const reached = newScore >= 14;
+                  const isTied = reached && match.scoreB >= 14;
+                  const allMatchEntries = [...useApp.getState().entries.filter(e => e.matchId === match.id), entry];
+                  const winnerIdForTie = isTied
+                    ? (winnerIsTeamA({ ...match, scoreA: newScore, teamA: match.teamA, teamB: match.teamB }, allMatchEntries)
+                        ? match.teamA.id : match.teamB.id)
+                    : match.teamA.id;
+                  updateMatch(match.id, {
+                    scoreA: newScore,
+                    status: reached ? "pending" : "live",
+                    winnerId: reached ? winnerIdForTie : undefined,
+                  });
+                  if (entry.jack === 3) triggerHangJack(match.tableId);
+                }}
+              />
+            )}
+            {canScoreB && (
+              <ScoreEntry
+                match={match}
+                team={match.teamB}
+                onSubmit={(entry) => {
+                  addEntry(entry);
+                  const newScore = match.scoreB + entry.total;
+                  const reached = newScore >= 14;
+                  const isTied = reached && match.scoreA >= 14;
+                  const allMatchEntries = [...useApp.getState().entries.filter(e => e.matchId === match.id), entry];
+                  const winnerIdForTie = isTied
+                    ? (winnerIsTeamA({ ...match, scoreB: newScore, teamA: match.teamA, teamB: match.teamB }, allMatchEntries)
+                        ? match.teamA.id : match.teamB.id)
+                    : match.teamB.id;
+                  updateMatch(match.id, {
+                    scoreB: newScore,
+                    status: reached ? "pending" : "live",
+                    winnerId: reached ? winnerIdForTie : undefined,
+                  });
+                  if (entry.jack === 3) triggerHangJack(match.tableId);
+                }}
+              />
+            )}
+            {!canScoreA && !canScoreB && (
+              <div className="md:col-span-2 text-center text-sm text-foreground/50 italic py-4">
+                {onAnyTeam
+                  ? "Another player on your team is the scorer for this round."
+                  : "You are spectating this table."}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Next-round roster footer */}
-        <NextRoundRoster currentMatchId={match.id} />
+        {/* Round Points */}
+        <div className="mt-5">
+          <div className="text-xs uppercase tracking-[0.3em] text-foreground/60 mb-3">Round Points</div>
+          <RoundPointsLog entries={allEntries.filter((e) => e.matchId === match.id)} match={match} />
+        </div>
       </div>
     </div>
   );
 }
 
-/** Shows other live/pending matches happening right now as a footer strip */
-function NextRoundRoster({ currentMatchId }: { currentMatchId: string }) {
-  const allMatches = useApp((s) => s.matches);
+/** Shows both teams' points for every round, paired — most recent first */
+function RoundPointsLog({ entries, match }: {
+  entries: import("@/lib/store").RoundEntry[];
+  match: Match;
+}) {
+  if (entries.length === 0) {
+    return <div className="text-sm text-foreground/50 italic">No rounds entered yet.</div>;
+  }
 
-  // Other tables currently playing (live or pending, not this one)
-  const otherLive = useMemo(
-    () => allMatches.filter(
-      (m) => m.id !== currentMatchId && (m.status === "live" || m.status === "pending")
-    ),
-    [allMatches, currentMatchId],
-  );
+  // Group entries by round number (use ts order to assign round indices)
+  // Each "round" = one entry per team submitted around the same time.
+  // We pair them by sorting chronologically and grouping in pairs of 2
+  // (one per team). If only one team has submitted, the other shows 0.
+  const sorted = [...entries].sort((a, b) => a.ts - b.ts);
 
-  // Completed matches of the current round — show who won to hint next round
-  const completedThisRound = useMemo(() => {
-    const current = allMatches.find((m) => m.id === currentMatchId);
-    if (!current) return [];
-    return allMatches.filter(
-      (m) => m.id !== currentMatchId && m.status === "completed" && m.round === current.round
-    );
-  }, [allMatches, currentMatchId]);
+  // Build round groups: collect entries in order, pair by team
+  type RoundGroup = { roundNum: number; a?: typeof sorted[0]; b?: typeof sorted[0] };
+  const groups: RoundGroup[] = [];
+  const usedIds = new Set<string>();
 
-  if (otherLive.length === 0 && completedThisRound.length === 0) return null;
+  let roundNum = 1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (usedIds.has(sorted[i].id)) continue;
+    const entryA = sorted[i].teamId === match.teamA.id ? sorted[i] : undefined;
+    const entryB = sorted[i].teamId === match.teamB.id ? sorted[i] : undefined;
+
+    // Look for the matching other-team entry within the next 3 entries
+    for (let j = i + 1; j < Math.min(i + 4, sorted.length); j++) {
+      if (usedIds.has(sorted[j].id)) continue;
+      if (!entryA && sorted[j].teamId === match.teamA.id) {
+        groups.push({ roundNum, a: sorted[j], b: entryB ?? sorted[i] });
+        usedIds.add(sorted[i].id); usedIds.add(sorted[j].id);
+        break;
+      }
+      if (!entryB && sorted[j].teamId === match.teamB.id) {
+        groups.push({ roundNum, a: entryA ?? sorted[i], b: sorted[j] });
+        usedIds.add(sorted[i].id); usedIds.add(sorted[j].id);
+        break;
+      }
+    }
+    if (!usedIds.has(sorted[i].id)) {
+      // Unpaired — only one team scored this round
+      groups.push({ roundNum, a: entryA, b: entryB });
+      usedIds.add(sorted[i].id);
+    }
+    roundNum++;
+  }
+
+  // Show most recent first, last 6 rounds
+  const visible = [...groups].reverse().slice(0, 6);
 
   return (
-    <div className="mt-5 pt-4 border-t" style={{ borderColor: "oklch(0.83 0.16 88 / 15%)" }}>
-      <div className="text-[10px] uppercase tracking-[0.3em] text-foreground/45 mb-3">Other Tables This Round</div>
-      <div className="space-y-2">
-        {otherLive.map((m) => (
-          <div key={m.id}
-               className="rounded-lg px-3 py-2 flex items-center gap-2"
-               style={{ background: "oklch(0.18 0.05 150 / 80%)", border: "1px solid oklch(0.83 0.16 88 / 15%)" }}>
-            <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
-              <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-                    style={{ background: "oklch(0.62 0.24 25)" }} />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5"
-                    style={{ background: "oklch(0.62 0.24 25)" }} />
-            </span>
-            <span className="font-marquee text-[10px] tracking-widest text-foreground/50 flex-shrink-0">{m.tableName}</span>
-            <span className="font-display font-bold text-xs truncate" style={{ color: `var(--${m.teamA.color})` }}>{m.teamA.name}</span>
-            <span className="font-display font-black text-sm" style={{ color: `var(--${m.teamA.color})` }}>{m.scoreA}</span>
-            <span className="text-foreground/30 text-[10px]">vs</span>
-            <span className="font-display font-black text-sm" style={{ color: `var(--${m.teamB.color})` }}>{m.scoreB}</span>
-            <span className="font-display font-bold text-xs truncate text-right" style={{ color: `var(--${m.teamB.color})` }}>{m.teamB.name}</span>
-          </div>
-        ))}
-        {completedThisRound.map((m) => {
-          const wA = winnerIsTeamA(m);
-          const winner = wA ? m.teamA : m.teamB;
-          return (
-            <div key={m.id}
-                 className="rounded-lg px-3 py-2 flex items-center gap-2"
-                 style={{ background: "oklch(0.18 0.05 150 / 60%)", border: "1px solid oklch(0.83 0.16 88 / 10%)" }}>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                    style={{ background: "oklch(0.83 0.16 88 / 15%)", color: "oklch(0.83 0.16 88)" }}>
-                Done
-              </span>
-              <span className="font-marquee text-[10px] tracking-widest text-foreground/50 flex-shrink-0">{m.tableName}</span>
-              <span className="text-[10px] text-foreground/50">Winner:</span>
-              <span className="font-display font-bold text-xs" style={{ color: `var(--${winner.color})` }}>{winner.name}</span>
-              <span className="font-display font-black text-sm gold-text ml-auto flex-shrink-0">
-                {wA ? m.scoreA : m.scoreB}–{wA ? m.scoreB : m.scoreA}
+    <div className="space-y-2">
+      {visible.map((g) => {
+        const badgesA = entryBadges(g.a);
+        const badgesB = entryBadges(g.b);
+        return (
+          <div key={g.roundNum}
+               className="rounded-lg overflow-hidden"
+               style={{ border: "1px solid oklch(0.83 0.16 88 / 20%)" }}>
+            {/* Round label */}
+            <div className="px-3 py-1 text-[9px] font-marquee tracking-[0.3em] text-foreground/40 uppercase"
+                 style={{ background: "oklch(0.16 0.04 150)" }}>
+              Round {g.roundNum}
+            </div>
+            {/* Team A row */}
+            <div className="flex items-center justify-between px-3 py-2 gap-2"
+                 style={{ background: "oklch(0.20 0.06 150)", borderTop: "1px solid oklch(0.83 0.16 88 / 10%)" }}>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-2 h-2 rounded-full flex-shrink-0"
+                     style={{ background: `var(--${match.teamA.color})` }} />
+                <span className="font-bold text-xs truncate"
+                      style={{ color: `var(--${match.teamA.color})` }}>
+                  {match.teamA.name}
+                </span>
+                {badgesA.length > 0 && (
+                  <span className="text-[10px] text-foreground/40 truncate hidden sm:block">
+                    {badgesA.join(" · ")}
+                  </span>
+                )}
+              </div>
+              <span className="font-display font-black text-sm flex-shrink-0"
+                    style={{ color: `var(--${match.teamA.color})` }}>
+                {g.a ? `+${g.a.total}` : "+0"}
               </span>
             </div>
-          );
-        })}
-      </div>
+            {/* Team B row */}
+            <div className="flex items-center justify-between px-3 py-2 gap-2"
+                 style={{ background: "oklch(0.18 0.05 150 / 60%)", borderTop: "1px solid oklch(0.83 0.16 88 / 10%)" }}>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-2 h-2 rounded-full flex-shrink-0"
+                     style={{ background: `var(--${match.teamB.color})` }} />
+                <span className="font-bold text-xs truncate"
+                      style={{ color: `var(--${match.teamB.color})` }}>
+                  {match.teamB.name}
+                </span>
+                {badgesB.length > 0 && (
+                  <span className="text-[10px] text-foreground/40 truncate hidden sm:block">
+                    {badgesB.join(" · ")}
+                  </span>
+                )}
+              </div>
+              <span className="font-display font-black text-sm flex-shrink-0"
+                    style={{ color: `var(--${match.teamB.color})` }}>
+                {g.b ? `+${g.b.total}` : "+0"}
+              </span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function entryBadges(e?: import("@/lib/store").RoundEntry): string[] {
+  if (!e) return [];
+  return [
+    e.high && "H",
+    e.low && "L",
+    e.jack === 3 ? "HJ" : e.jack === 1 ? "J" : null,
+    e.game && "G",
+  ].filter((v): v is string => Boolean(v));
 }
 
 function ScoreNum({ value, color }: { value: number; color: string }) {

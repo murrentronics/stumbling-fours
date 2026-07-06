@@ -38,7 +38,8 @@ function Home() {
               <polygon points="34,0 52,0 66,32 48,32" fill="black" />
             </svg>
             <Spade className="h-4 w-4 relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" style={{ color: "white" }} />
-            <span className="font-marquee tracking-[0.4em] text-xs text-white relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">TRINIDAD · ALL FOURS</span>
+            <span className="font-marquee tracking-[0.4em] text-xs text-white relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">ALL</span>
+            <span className="font-marquee tracking-[0.4em] text-xs text-white relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">FOURS</span>
           </div>
           <h1 className="font-display font-black text-5xl sm:text-7xl gold-text leading-none">
             Deal. Score. Win.

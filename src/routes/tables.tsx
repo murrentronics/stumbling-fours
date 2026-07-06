@@ -49,7 +49,7 @@ function Tables() {
   const tabs: TabDef[] = role === "admin" ? [...baseTabs, ...adminTabs] : baseTabs;
 
   return (
-    <div className="pt-2">
+    <div className="pt-2 overflow-x-hidden">
       {/* Title row */}
       <div className="mb-3">
         <h1 className="font-display font-black text-4xl gold-text">Tables</h1>
@@ -59,30 +59,27 @@ function Tables() {
       <div className="flex items-center gap-1 p-1.5 rounded-full mb-5 w-full"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         {tabs.map((t) => {
-          const Icon = t.icon;
           const active = tab === t.id;
           const count  = counts[t.id];
           return (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              title={t.label}
               className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 font-bold uppercase tracking-widest transition text-xs min-w-0
-                ${active ? "text-[oklch(0.18_0.05_150)]" : "text-foreground/70"}`}
+                ${active ? "text-black" : "text-foreground/70"}`}
               style={active ? { background: "var(--gradient-gold)" } : {}}
             >
-              <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden sm:inline truncate">{t.label}</span>
+              <span className="truncate">{t.label}</span>
               {count > 0 && (
                 <span
                   className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"
                   style={{
                     background: active
-                      ? "oklch(0.18 0.05 150 / 50%)"
+                      ? "rgba(0,0,0,0.2)"
                       : t.id === "pending"
                         ? "var(--gradient-crimson)"
                         : "oklch(0.83 0.16 88 / 25%)",
-                    color: active ? "oklch(0.18 0.05 150)" : t.id === "pending" ? "white" : "oklch(0.83 0.16 88)",
+                    color: active ? "black" : t.id === "pending" ? "white" : "oklch(0.83 0.16 88)",
                   }}
                 >
                   {count}
@@ -237,14 +234,14 @@ function LiveTab() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {byRound[roundNum].map((m) => {
               const isMine = m.id === myMatch?.id;
               const isPending = m.status === "pending";
               return (
                 <div
                   key={m.id}
-                  className="relative rounded-xl border-2 transition hover:scale-[1.02] hover:shadow-xl"
+                  className="relative rounded-xl border-2 transition hover:scale-[1.02] hover:shadow-xl min-w-0 w-full"
                   style={{
                     borderColor: isPending ? "oklch(0.55 0.18 145)" : "oklch(0.83 0.16 88 / 35%)",
                     background: "oklch(0.18 0.05 150 / 80%)",
@@ -253,14 +250,14 @@ function LiveTab() {
                 >
                   <button
                     onClick={() => setSelectedId(m.id)}
-                    className="w-full text-left p-5 focus:outline-none"
+                    className="w-full text-left p-4 focus:outline-none"
                   >
                     {/* Table name + status */}
-                    <div className="flex items-center justify-between mb-4 pr-6">
-                      <span className="font-marquee tracking-[0.3em] text-sm text-foreground/80">
+                    <div className="flex items-center justify-between mb-3 pr-6 gap-2">
+                      <span className="font-marquee tracking-[0.3em] text-sm text-foreground/80 truncate">
                         {m.tableName}
                       </span>
-                      <span className="flex items-center gap-1.5">
+                      <span className="flex items-center gap-1.5 flex-shrink-0">
                         {isPending ? (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
                                 style={{ background: "oklch(0.55 0.18 145)", color: "white" }}>
@@ -282,38 +279,38 @@ function LiveTab() {
                     </div>
 
                     {/* VS matchup */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                          <div className="w-2 h-2 rounded-full flex-shrink-0"
                                style={{ background: `var(--${m.teamA.color})` }} />
-                          <div className="font-display font-bold text-sm truncate"
+                          <div className="font-display font-bold text-xs truncate min-w-0"
                                style={{ color: `var(--${m.teamA.color})` }}>
                             {m.teamA.name}
                           </div>
                         </div>
-                        <div className="font-display font-black text-3xl"
-                             style={{ color: `var(--${m.teamA.color})`, textShadow: `0 0 16px var(--${m.teamA.color})` }}>
+                        <div className="font-display font-black text-2xl"
+                             style={{ color: `var(--${m.teamA.color})`, textShadow: `0 0 12px var(--${m.teamA.color})` }}>
                           {m.scoreA}
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                        <Spade className="h-4 w-4 text-foreground/30" />
-                        <span className="font-marquee tracking-widest text-xs text-foreground/40">VS</span>
+                      <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                        <Spade className="h-3.5 w-3.5 text-foreground/30" />
+                        <span className="font-marquee tracking-widest text-[10px] text-foreground/40">VS</span>
                       </div>
 
                       <div className="flex-1 min-w-0 text-right">
-                        <div className="flex items-center justify-end gap-1.5 mb-1">
-                          <div className="font-display font-bold text-sm truncate"
+                        <div className="flex items-center justify-end gap-1.5 mb-1 min-w-0">
+                          <div className="font-display font-bold text-xs truncate min-w-0"
                                style={{ color: `var(--${m.teamB.color})` }}>
                             {m.teamB.name}
                           </div>
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          <div className="w-2 h-2 rounded-full flex-shrink-0"
                                style={{ background: `var(--${m.teamB.color})` }} />
                         </div>
-                        <div className="font-display font-black text-3xl text-right"
-                             style={{ color: `var(--${m.teamB.color})`, textShadow: `0 0 16px var(--${m.teamB.color})` }}>
+                        <div className="font-display font-black text-2xl text-right"
+                             style={{ color: `var(--${m.teamB.color})`, textShadow: `0 0 12px var(--${m.teamB.color})` }}>
                           {m.scoreB}
                         </div>
                       </div>
