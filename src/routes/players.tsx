@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
   Users, Clock, Ban, ShieldOff, Check, X, Trash2,
-  Search, UserX, RefreshCw, type LucideIcon,
+  Search, UserX, RefreshCw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/players")({
@@ -58,7 +58,11 @@ function PlayersPage() {
         .select("id,email,banned_at,reason")
         .order("banned_at", { ascending: false }),
     ]);
-    setPlayers(((p as Player[]) ?? []).filter((pl) => pl.id !== user?.id));
+    setPlayers(((p as Player[]) ?? [])
+      .filter((pl) => pl.id !== user?.id)
+      // Treat null/missing status (pre-migration users) as active
+      .map((pl) => ({ ...pl, status: (pl.status ?? "active") as PlayerStatus }))
+    );
     setBannedEmails((b as BannedEmail[]) ?? []);
   };
 
@@ -134,10 +138,10 @@ function PlayersPage() {
     ).length,
   };
 
-  const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
-    { id: "pending", label: "Pending",  icon: Clock    },
-    { id: "members", label: "Members",  icon: Users    },
-    { id: "banned",  label: "Banned",   icon: Ban      },
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "pending", label: "Pending" },
+    { id: "members", label: "Members" },
+    { id: "banned",  label: "Banned"  },
   ];
 
   return (
@@ -156,7 +160,6 @@ function PlayersPage() {
       <div className="flex items-center gap-1 p-1.5 rounded-full w-full"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         {tabs.map((t) => {
-          const Icon   = t.icon;
           const active = tab === t.id;
           const count  = counts[t.id];
           return (
@@ -167,8 +170,7 @@ function PlayersPage() {
                 ${active ? "text-black" : "text-foreground/70"}`}
               style={active ? { background: "var(--gradient-gold)" } : {}}
             >
-              <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden sm:inline truncate">{t.label}</span>
+              <span className="truncate">{t.label}</span>
               {count > 0 && (
                 <span
                   className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"

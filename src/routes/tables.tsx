@@ -8,8 +8,8 @@ import { Check, X, Clock, History, ArrowLeft, Spade, MoreVertical, Trash2, UserX
 export const Route = createFileRoute("/tables")({
   head: () => ({
     meta: [
-      { title: "Tables — Stumbling Fours" },
-      { name: "description", content: "Live and past All Fours games, scoring and approvals." },
+      { title: "Tournament — Stumbling Fours" },
+      { name: "description", content: "Live and past All Fours tournament games, scoring and approvals." },
     ],
   }),
   component: Tables,
@@ -41,22 +41,19 @@ function Tables() {
   const baseTabs: TabDef[] = [
     { id: "live",     label: "Live",     icon: Radio   },
     { id: "upcoming", label: "Upcoming", icon: Timer   },
-    { id: "history",  label: "History",  icon: History },
+    { id: "history",  label: "Past",     icon: History },
   ];
-  const adminTabs: TabDef[] = [
-    { id: "pending", label: "Pending",   icon: Clock   },
-  ];
-  const tabs: TabDef[] = role === "admin" ? [...baseTabs, ...adminTabs] : baseTabs;
+  const tabs = baseTabs; // pending is shown separately below for admins
 
   return (
     <div className="pt-2 overflow-x-hidden">
       {/* Title row */}
       <div className="mb-3">
-        <h1 className="font-display font-black text-4xl gold-text">Tables</h1>
+        <h1 className="font-display font-black text-4xl gold-text">Tournament</h1>
       </div>
 
-      {/* Tab strip — full width, fits mobile */}
-      <div className="flex items-center gap-1 p-1.5 rounded-full mb-5 w-full"
+      {/* Main tab strip — 3 tabs only */}
+      <div className="flex items-center gap-1 p-1.5 rounded-full mb-2 w-full"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         {tabs.map((t) => {
           const active = tab === t.id;
@@ -74,12 +71,8 @@ function Tables() {
                 <span
                   className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"
                   style={{
-                    background: active
-                      ? "rgba(0,0,0,0.2)"
-                      : t.id === "pending"
-                        ? "var(--gradient-crimson)"
-                        : "oklch(0.83 0.16 88 / 25%)",
-                    color: active ? "black" : t.id === "pending" ? "white" : "oklch(0.83 0.16 88)",
+                    background: active ? "rgba(0,0,0,0.2)" : "oklch(0.83 0.16 88 / 25%)",
+                    color: active ? "black" : "oklch(0.83 0.16 88)",
                   }}
                 >
                   {count}
@@ -89,6 +82,36 @@ function Tables() {
           );
         })}
       </div>
+
+      {/* Admin-only Pending button — right-aligned below the tab strip */}
+      {role === "admin" && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setTab("pending")}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-bold uppercase tracking-widest text-xs transition
+              ${tab === "pending" ? "text-black" : "text-foreground/70"}`}
+            style={tab === "pending"
+              ? { background: "var(--gradient-crimson)", color: "white" }
+              : { background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}
+          >
+            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>Pending</span>
+            {pendingCount > 0 && (
+              <span
+                className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"
+                style={{
+                  background: tab === "pending" ? "rgba(255,255,255,0.3)" : "var(--gradient-crimson)",
+                  color: "white",
+                }}
+              >
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+      {/* Add margin when no pending button */}
+      {role !== "admin" && <div className="mb-4" />}
 
       {tab === "live"     && <LiveTab />}
       {tab === "upcoming" && <UpcomingTab />}
@@ -106,86 +129,115 @@ function LiveTab() {
     [allMatches],
   );
 
-  const myMatch = useMemo(
-    () => matches.find((m) =>
-      [...m.teamA.players, ...m.teamB.players].some((p) => p.email === currentUserEmail),
-    ),
-    [matches, currentUserEmail],
-  );
+  // Three-level navigation: "tournaments" → "tables" (within a tournament) → "detail" (live table)
+  type LiveView =
+    | { level: "tournaments" }
+    | { level: "tables"; tournamentId: string; tournamentName: string }
+    | { level: "detail"; matchId: string; tournamentId: string; tournamentName: string };
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<LiveView>({ level: "tournaments" });
   const [liveSearch, setLiveSearch] = useState("");
 
-  // Auto-open own table on first load; clear if match disappears
+  // Clear stale navigation when matches change
   useEffect(() => {
-    if (matches.length === 0) { setSelectedId(null); return; }
-    if (selectedId && matches.some((m) => m.id === selectedId)) return;
-    // don't auto-select — let user pick from grid
+    if (matches.length === 0) { setView({ level: "tournaments" }); return; }
+    if (view.level === "detail") {
+      // If the match is no longer live/pending (e.g. admin approved → completed), go back
+      if (!matches.some((m) => m.id === view.matchId)) setView({ level: "tournaments" });
+    }
+    if (view.level === "tables") {
+      // If all matches for this tournament are gone from the live list, go back
+      const anyLeft = matches.some((m) => (m.tournamentId ?? "unknown") === view.tournamentId);
+      if (!anyLeft) setView({ level: "tournaments" });
+    }
   }, [matches]);
 
   if (matches.length === 0)
     return <Empty icon={<Clock className="h-6 w-6" />} title="No live tables" body="Start a tournament round to bring tables online." />;
 
-  const active = selectedId ? matches.find((m) => m.id === selectedId) ?? null : null;
-
-  // ── Detail view ──────────────────────────────────────────────────────────
-  if (active) {
+  // ── Detail view ────────────────────────────────────────────────────────
+  if (view.level === "detail") {
+    const active = matches.find((m) => m.id === view.matchId) ?? null;
+    if (!active) { setView({ level: "tournaments" }); return null; }
     return (
       <div className="space-y-4">
         <button
-          onClick={() => setSelectedId(null)}
+          onClick={() => setView({ level: "tables", tournamentId: view.tournamentId, tournamentName: view.tournamentName })}
           className="chip-button chip-button-hover"
           style={{ background: "var(--gradient-gold)", color: "oklch(0.10 0.03 150)" }}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          All Tables
+          {view.tournamentName}
         </button>
         <LiveTable match={active} />
       </div>
     );
   }
 
-  // ── Grid view ─────────────────────────────────────────────────────────────
-  const liveCount = matches.filter((m) => m.status === "live").length;
+  // Group live matches by tournament
+  const byTournament = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; matches: typeof matches }>();
+    for (const m of matches) {
+      const tid = m.tournamentId ?? "unknown";
+      const tname = m.tournamentName ?? "Tournament";
+      if (!map.has(tid)) map.set(tid, { id: tid, name: tname, matches: [] });
+      map.get(tid)!.matches.push(m);
+    }
+    return Array.from(map.values());
+  }, [matches]);
 
-  // Group by round number, sorted ascending
-  const maxRound = Math.max(...matches.map((m) => m.round));
-
-  // Filter matches by search
-  const searchTerm = liveSearch.trim().toLowerCase();
-  const filteredMatches = searchTerm
-    ? matches.filter(
-        (m) =>
+  // ── Tables view (within one tournament) ───────────────────────────────
+  if (view.level === "tables") {
+    const trn = byTournament.find((t) => t.id === view.tournamentId);
+    const trnMatches = trn?.matches ?? [];
+    const myMatch = trnMatches.find((m) =>
+      [...m.teamA.players, ...m.teamB.players].some((p) => p.email === currentUserEmail)
+    );
+    const liveCount = trnMatches.filter((m) => m.status === "live").length;
+    const searchTerm = liveSearch.trim().toLowerCase();
+    const filtered = searchTerm
+      ? trnMatches.filter((m) =>
           m.teamA.name.toLowerCase().includes(searchTerm) ||
-          m.teamB.name.toLowerCase().includes(searchTerm),
-      )
-    : matches;
+          m.teamB.name.toLowerCase().includes(searchTerm)
+        )
+      : trnMatches;
+    const maxRound = Math.max(...trnMatches.map((m) => m.round));
+    const byRound = filtered.reduce<Record<number, typeof trnMatches>>((acc, m) => {
+      (acc[m.round] ??= []).push(m);
+      return acc;
+    }, {});
+    const roundNumbers = Object.keys(byRound).map(Number).sort((a, b) => a - b);
 
-  const byRound = filteredMatches.reduce<Record<number, typeof matches>>((acc, m) => {
-    (acc[m.round] ??= []).push(m);
-    return acc;
-  }, {});
-  const roundNumbers = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+    return (
+      <div className="space-y-6">
+        {/* Back to tournaments */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <button
+            onClick={() => { setView({ level: "tournaments" }); setLiveSearch(""); }}
+            className="chip-button chip-button-hover"
+            style={{ background: "var(--gradient-gold)", color: "oklch(0.10 0.03 150)" }}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Tournaments
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{ background: "var(--gradient-crimson)", color: "white" }}>
+              {liveCount} LIVE
+            </span>
+            {trnMatches.length > liveCount && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    style={{ background: "oklch(0.55 0.18 145)", color: "white" }}>
+                {trnMatches.length - liveCount} PENDING
+              </span>
+            )}
+          </div>
+        </div>
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-3">
-        <span className="font-marquee tracking-[0.3em] text-xs text-foreground/60">TABLES</span>
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-              style={{ background: "var(--gradient-crimson)", color: "white" }}>
-          {liveCount} LIVE
-        </span>
-        {matches.length > liveCount && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                style={{ background: "oklch(0.55 0.18 145)", color: "white" }}>
-            {matches.length - liveCount} PENDING
-          </span>
-        )}
-      </div>
+        <h2 className="font-display font-black text-xl gold-text -mt-2">{view.tournamentName}</h2>
 
-      {/* Search bar */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+        {/* Search */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40 pointer-events-none" />
           <input
             value={liveSearch}
@@ -205,126 +257,131 @@ function LiveTab() {
             }}
           />
           {liveSearch && (
-            <button
-              type="button"
-              onClick={() => setLiveSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition"
-              title="Clear"
-            >
+            <button type="button" onClick={() => setLiveSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition">
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
-      </div>
 
-      {filteredMatches.length === 0 && (
-        <p className="text-sm text-foreground/50">No tables match.</p>
-      )}
+        {filtered.length === 0 && <p className="text-sm text-foreground/50">No tables match.</p>}
 
-      {roundNumbers.map((roundNum) => (
-        <div key={roundNum}>
-          {/* Round section header */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="font-marquee tracking-[0.25em] text-lg gold-text">
-              {getRoundLabel(roundNum, maxRound)}
+        {roundNumbers.map((roundNum) => (
+          <div key={roundNum}>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="font-marquee tracking-[0.25em] text-lg gold-text">
+                {getRoundLabel(roundNum, maxRound)}
+              </div>
+              <div className="flex-1 h-px" style={{ background: "oklch(0.83 0.16 88 / 25%)" }} />
+              <div className="text-[10px] uppercase tracking-widest text-foreground/40">
+                {byRound[roundNum].length} {byRound[roundNum].length === 1 ? "table" : "tables"}
+              </div>
             </div>
-            <div className="flex-1 h-px" style={{ background: "oklch(0.83 0.16 88 / 25%)" }} />
-            <div className="text-[10px] uppercase tracking-widest text-foreground/40">
-              {byRound[roundNum].length} {byRound[roundNum].length === 1 ? "table" : "tables"}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {byRound[roundNum].map((m) => {
-              const isMine = m.id === myMatch?.id;
-              const isPending = m.status === "pending";
-              return (
-                <div
-                  key={m.id}
-                  className="relative rounded-xl border-2 transition hover:scale-[1.02] hover:shadow-xl min-w-0 w-full"
-                  style={{
-                    borderColor: isPending ? "oklch(0.55 0.18 145)" : "oklch(0.83 0.16 88 / 35%)",
-                    background: "oklch(0.18 0.05 150 / 80%)",
-                    boxShadow: isMine ? "0 0 20px oklch(0.83 0.16 88 / 30%)" : undefined,
-                  }}
-                >
-                  <button
-                    onClick={() => setSelectedId(m.id)}
-                    className="w-full text-left p-4 focus:outline-none"
-                  >
-                    {/* Table name + status */}
-                    <div className="flex items-center justify-between mb-3 pr-6 gap-2">
-                      <span className="font-marquee tracking-[0.3em] text-sm text-foreground/80 truncate">
-                        {m.tableName}
-                      </span>
-                      <span className="flex items-center gap-1.5 flex-shrink-0">
-                        {isPending ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                                style={{ background: "oklch(0.55 0.18 145)", color: "white" }}>
-                            PENDING
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <span className="relative flex h-2 w-2">
-                              <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-                                    style={{ background: "oklch(0.62 0.24 25)" }} />
-                              <span className="relative inline-flex rounded-full h-2 w-2"
-                                    style={{ background: "oklch(0.62 0.24 25)" }} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {byRound[roundNum].map((m) => {
+                const isMine = m.id === myMatch?.id;
+                const isPending = m.status === "pending";
+                return (
+                  <div key={m.id}
+                       className="relative rounded-xl border-2 transition hover:scale-[1.02] hover:shadow-xl min-w-0 w-full"
+                       style={{
+                         borderColor: isPending ? "oklch(0.55 0.18 145)" : "oklch(0.83 0.16 88 / 35%)",
+                         background: "oklch(0.18 0.05 150 / 80%)",
+                         boxShadow: isMine ? "0 0 20px oklch(0.83 0.16 88 / 30%)" : undefined,
+                       }}>
+                    <button
+                      onClick={() => setView({ level: "detail", matchId: m.id, tournamentId: view.tournamentId, tournamentName: view.tournamentName })}
+                      className="w-full text-left p-4 focus:outline-none"
+                    >
+                      <div className="flex items-center justify-between mb-3 pr-6 gap-2">
+                        <span className="font-marquee tracking-[0.3em] text-sm text-foreground/80 truncate">{m.tableName}</span>
+                        <span className="flex items-center gap-1.5 flex-shrink-0">
+                          {isPending ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                  style={{ background: "oklch(0.55 0.18 145)", color: "white" }}>PENDING</span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
+                                      style={{ background: "oklch(0.62 0.24 25)" }} />
+                                <span className="relative inline-flex rounded-full h-2 w-2"
+                                      style={{ background: "oklch(0.62 0.24 25)" }} />
+                              </span>
+                              <span className="font-marquee tracking-widest text-[10px] text-foreground/70">LIVE</span>
                             </span>
-                            <span className="font-marquee tracking-widest text-[10px] text-foreground/70">LIVE</span>
-                          </span>
-                        )}
-                        {isMine && <span className="text-[11px] gold-text font-bold">★ YOU</span>}
-                      </span>
-                    </div>
-
-                    {/* VS matchup */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1 min-w-0">
-                          <div className="w-2 h-2 rounded-full flex-shrink-0"
-                               style={{ background: `var(--${m.teamA.color})` }} />
-                          <div className="font-display font-bold text-xs truncate min-w-0"
-                               style={{ color: `var(--${m.teamA.color})` }}>
-                            {m.teamA.name}
+                          )}
+                          {isMine && <span className="text-[11px] gold-text font-bold">★ YOU</span>}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: `var(--${m.teamA.color})` }} />
+                            <div className="font-display font-bold text-xs truncate min-w-0" style={{ color: `var(--${m.teamA.color})` }}>{m.teamA.name}</div>
                           </div>
+                          <div className="font-display font-black text-2xl" style={{ color: `var(--${m.teamA.color})`, textShadow: `0 0 12px var(--${m.teamA.color})` }}>{m.scoreA}</div>
                         </div>
-                        <div className="font-display font-black text-2xl"
-                             style={{ color: `var(--${m.teamA.color})`, textShadow: `0 0 12px var(--${m.teamA.color})` }}>
-                          {m.scoreA}
+                        <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                          <Spade className="h-3.5 w-3.5 text-foreground/30" />
+                          <span className="font-marquee tracking-widest text-[10px] text-foreground/40">VS</span>
                         </div>
-                      </div>
-
-                      <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
-                        <Spade className="h-3.5 w-3.5 text-foreground/30" />
-                        <span className="font-marquee tracking-widest text-[10px] text-foreground/40">VS</span>
-                      </div>
-
-                      <div className="flex-1 min-w-0 text-right">
-                        <div className="flex items-center justify-end gap-1.5 mb-1 min-w-0">
-                          <div className="font-display font-bold text-xs truncate min-w-0"
-                               style={{ color: `var(--${m.teamB.color})` }}>
-                            {m.teamB.name}
+                        <div className="flex-1 min-w-0 text-right">
+                          <div className="flex items-center justify-end gap-1.5 mb-1 min-w-0">
+                            <div className="font-display font-bold text-xs truncate min-w-0" style={{ color: `var(--${m.teamB.color})` }}>{m.teamB.name}</div>
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: `var(--${m.teamB.color})` }} />
                           </div>
-                          <div className="w-2 h-2 rounded-full flex-shrink-0"
-                               style={{ background: `var(--${m.teamB.color})` }} />
-                        </div>
-                        <div className="font-display font-black text-2xl text-right"
-                             style={{ color: `var(--${m.teamB.color})`, textShadow: `0 0 12px var(--${m.teamB.color})` }}>
-                          {m.scoreB}
+                          <div className="font-display font-black text-2xl text-right" style={{ color: `var(--${m.teamB.color})`, textShadow: `0 0 12px var(--${m.teamB.color})` }}>{m.scoreB}</div>
                         </div>
                       </div>
-                    </div>
-                  </button>
-
-                  {/* Admin 3-dot menu */}
-                  <AdminCardMenu matchId={m.id} teamA={m.teamA} teamB={m.teamB} />
-                </div>
-              );
-            })}
+                    </button>
+                    <AdminCardMenu matchId={m.id} teamA={m.teamA} teamB={m.teamB} />
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+    );
+  }
+
+  // ── Tournament list view ───────────────────────────────────────────────
+  return (
+    <div className="space-y-4">
+      {byTournament.map((trn) => {
+        const liveCount = trn.matches.filter((m) => m.status === "live").length;
+        const pendingCount = trn.matches.filter((m) => m.status === "pending").length;
+        const earliest = Math.min(...trn.matches.map((m) => m.startedAt));
+        const fmtDate = (ts: number) => new Date(ts).toLocaleDateString("en-TT", { day: "numeric", month: "short" });
+        return (
+          <button
+            key={trn.id}
+            onClick={() => setView({ level: "tables", tournamentId: trn.id, tournamentName: trn.name })}
+            className="w-full text-left ornate-border p-5 flex items-center gap-4 transition hover:scale-[1.01]"
+            style={{ borderColor: "oklch(0.83 0.16 88 / 35%)" }}
+          >
+            <div className="h-12 w-12 rounded-full grid place-items-center flex-shrink-0"
+                 style={{ background: "var(--gradient-crimson)", color: "white" }}>
+              <Trophy className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display font-black text-lg gold-text truncate">{trn.name}</div>
+              <div className="text-xs text-foreground/50 mt-0.5">{fmtDate(earliest)} · {trn.matches.length} table{trn.matches.length === 1 ? "" : "s"}</div>
+              <div className="flex items-center gap-2 mt-1.5">
+                {liveCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                        style={{ background: "var(--gradient-crimson)", color: "white" }}>{liveCount} LIVE</span>
+                )}
+                {pendingCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+                        style={{ background: "oklch(0.55 0.18 145)", color: "white" }}>{pendingCount} PENDING</span>
+                )}
+              </div>
+            </div>
+            <ArrowLeft className="h-5 w-5 text-foreground/40 rotate-180 flex-shrink-0" />
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -592,44 +649,55 @@ function PendingTab() {
 function HistoryTab() {
   const allMatches = useApp((s) => s.matches);
   const allEntries = useApp((s) => s.entries);
-  const tournament = useApp((s) => s.tournament);
 
   const completed = allMatches.filter((m) => m.status === "completed");
 
   if (completed.length === 0)
     return <Empty icon={<History className="h-6 w-6" />} title="No completed games yet" body="Completed matches will appear here grouped by tournament." />;
 
-  // Group matches by tournament name (use tournament name from store, or fallback to date range)
-  // Since all matches in the snapshot belong to the current/last tournament, we group them all
-  // under the tournament name, then within that by round.
-
-  // Find the date range: earliest startedAt → latest startedAt among completed matches
-  const timestamps = completed.map((m) => m.startedAt);
-  const minTs = Math.min(...timestamps);
-  const maxTs = Math.max(...timestamps);
-
   const fmtDate = (ts: number) =>
     new Date(ts).toLocaleDateString("en-TT", { day: "numeric", month: "short", year: "numeric" });
 
-  const tournamentName = tournament?.name ?? "Tournament";
-  const dateRange = `${fmtDate(minTs)} – ${fmtDate(maxTs)}`;
+  // Group by tournamentId — fall back to "legacy" bucket for matches without one
+  const groups = new Map<string, { id: string; name: string; matches: typeof completed }>();
+  for (const m of completed) {
+    const tid   = m.tournamentId   ?? "legacy";
+    const tname = m.tournamentName ?? "Tournament";
+    if (!groups.has(tid)) groups.set(tid, { id: tid, name: tname, matches: [] });
+    groups.get(tid)!.matches.push(m);
+  }
 
-  // Sort matches: highest round first (Final at top), then by startedAt desc within round
-  const maxRound = Math.max(...completed.map((m) => m.round));
-  const sorted = [...completed].sort((a, b) => {
-    if (b.round !== a.round) return b.round - a.round; // higher round = later stage = top
-    return b.startedAt - a.startedAt;
+  // Sort groups: most recent first (by latest match startedAt in group)
+  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+    const latestA = Math.max(...a.matches.map((m) => m.startedAt));
+    const latestB = Math.max(...b.matches.map((m) => m.startedAt));
+    return latestB - latestA;
   });
 
   return (
     <div className="space-y-4">
-      <TournamentAccordion
-        name={tournamentName}
-        dateRange={dateRange}
-        matches={sorted}
-        maxRound={maxRound}
-        allEntries={allEntries}
-      />
+      {sortedGroups.map((grp) => {
+        const timestamps = grp.matches.map((m) => m.startedAt);
+        const minTs = Math.min(...timestamps);
+        const maxTs = Math.max(...timestamps);
+        const dateRange = minTs === maxTs
+          ? fmtDate(minTs)
+          : `${fmtDate(minTs)} – ${fmtDate(maxTs)}`;
+        const maxRound = Math.max(...grp.matches.map((m) => m.round));
+        const sorted = [...grp.matches].sort((a, b) =>
+          b.round !== a.round ? b.round - a.round : b.startedAt - a.startedAt
+        );
+        return (
+          <TournamentAccordion
+            key={grp.id}
+            name={grp.name}
+            dateRange={dateRange}
+            matches={sorted}
+            maxRound={maxRound}
+            allEntries={allEntries}
+          />
+        );
+      })}
     </div>
   );
 }

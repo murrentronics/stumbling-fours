@@ -1,15 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Shield, User, LogOut, Music, Music2, Menu, X, Settings } from "lucide-react";
+import { Shield, User, LogOut, Menu, X, Settings } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import logoSrc from "@/assets/logo.png";
 
-interface TopNavProps {
-  musicPlaying?: boolean;
-  onToggleMusic?: () => void;
-}
+interface TopNavProps {}
 
-export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
+export function TopNav({}: TopNavProps) {
   const { profile, isAdmin, signOut, user } = useAuth();
   const label = profile?.display_name || user?.email?.split("@")[0] || "Player";
   const avatarUrl = profile?.avatar_url ?? null;
@@ -50,8 +47,9 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         <NavLink to="/">Home</NavLink>
         <NavLink to="/tables">Tables</NavLink>
+        <NavLink to="/league">Teams</NavLink>
         {!isAdmin && <NavLink to="/my-games">My Games</NavLink>}
-        {isAdmin && <NavLink to="/teams">Teams</NavLink>}
+        {isAdmin && <NavLink to="/teams">Teams (Admin)</NavLink>}
         {isAdmin && <NavLink to="/players">Players</NavLink>}
         {isAdmin && <NavLink to="/tournament">Tournament</NavLink>}
         {isAdmin && <NavLink to="/settings">Settings</NavLink>}
@@ -60,18 +58,6 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
       {/* Desktop right side */}
       <div className="hidden md:flex items-center gap-2 rounded-full p-1.5 flex-shrink-0"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
-        {onToggleMusic && (
-          <button onClick={onToggleMusic}
-                  title={musicPlaying ? "Mute music" : "Play music"}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition"
-                  style={musicPlaying
-                    ? { background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }
-                    : { color: "var(--color-foreground)", opacity: 0.7 }}>
-            {musicPlaying ? <Music className="h-3.5 w-3.5" /> : <Music2 className="h-3.5 w-3.5" />}
-            {musicPlaying ? "Music on" : "Music off"}
-          </button>
-        )}
-
         {/* User badge → profile link */}
         <Link to="/profile"
               className="flex items-center gap-2 px-2 py-1.5 rounded-full font-bold transition hover:opacity-80"
@@ -114,8 +100,9 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
               <div className="p-2 space-y-0.5">
                 <MobileNavLink to="/" onClick={close}>Home</MobileNavLink>
                 <MobileNavLink to="/tables" onClick={close}>Tables</MobileNavLink>
+                <MobileNavLink to="/league" onClick={close}>Teams</MobileNavLink>
                 {!isAdmin && <MobileNavLink to="/my-games" onClick={close}>My Games</MobileNavLink>}
-                {isAdmin && <MobileNavLink to="/teams" onClick={close}>Teams</MobileNavLink>}
+                {isAdmin && <MobileNavLink to="/teams" onClick={close}>Teams (Admin)</MobileNavLink>}
                 {isAdmin && <MobileNavLink to="/players" onClick={close}>Players</MobileNavLink>}
                 {isAdmin && <MobileNavLink to="/tournament" onClick={close}>Tournament</MobileNavLink>}
                 {isAdmin && (
@@ -124,17 +111,6 @@ export function TopNav({ musicPlaying = false, onToggleMusic }: TopNavProps) {
                   </MobileNavLink>
                 )}
               </div>
-              <div className="h-px mx-3" style={{ background: "oklch(0.83 0.16 88 / 20%)" }} />
-              {onToggleMusic && (
-                <div className="p-2">
-                  <button onClick={() => { onToggleMusic(); close(); }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition hover:bg-white/8"
-                          style={musicPlaying ? { color: "oklch(0.83 0.16 88)" } : { color: "var(--color-foreground)", opacity: 0.7 }}>
-                    {musicPlaying ? <Music className="h-4 w-4" /> : <Music2 className="h-4 w-4" />}
-                    {musicPlaying ? "Music On" : "Music Off"}
-                  </button>
-                </div>
-              )}
               <div className="h-px mx-3" style={{ background: "oklch(0.83 0.16 88 / 20%)" }} />
               <div className="p-2">
                 <button onClick={() => { signOut(); close(); }}

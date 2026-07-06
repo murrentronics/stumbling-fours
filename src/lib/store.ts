@@ -131,6 +131,8 @@ export type Match = {
   id: string;
   tableId: string;
   tableName: string;
+  tournamentId: string;
+  tournamentName: string;
   teamA: Team;
   teamB: Team;
   scoreA: number;

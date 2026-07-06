@@ -28,18 +28,22 @@ function Home() {
                  "radial-gradient(circle at 20% 30%, oklch(0.83 0.16 88 / 40%), transparent 40%), radial-gradient(circle at 80% 70%, oklch(0.62 0.24 25 / 40%), transparent 40%)",
              }} />
         <div className="relative">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 overflow-hidden relative"
+          <div className="inline-flex items-center rounded-full mb-6 overflow-hidden relative"
                style={{ background: "#CE1126", border: "2px solid rgba(255,255,255,0.30)" }}>
-            {/* Trinidad flag: red bg with black diagonal stripe bordered by white */}
+            {/* Trinidad flag: red bg with narrow black diagonal stripe bordered by white, centred */}
             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 32" aria-hidden="true">
-              {/* white border of stripe */}
-              <polygon points="30,0 56,0 70,32 44,32" fill="white" />
-              {/* black core of stripe */}
-              <polygon points="34,0 52,0 66,32 48,32" fill="black" />
+              <polygon points="44,0 52,0 56,32 48,32" fill="white" />
+              <polygon points="46,0 50,0 54,32 50,32" fill="black" />
             </svg>
-            <Spade className="h-4 w-4 relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" style={{ color: "white" }} />
-            <span className="font-marquee tracking-[0.4em] text-xs text-white relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">ALL</span>
-            <span className="font-marquee tracking-[0.4em] text-xs text-white relative z-10 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">FOURS</span>
+            {/* Left red section: spade + ALL */}
+            <div className="relative z-10 flex items-center gap-1.5 pl-5 pr-8 py-1.5">
+              <Spade className="h-4 w-4 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" style={{ color: "white" }} />
+              <span className="font-marquee tracking-[0.4em] text-xs text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">ALL</span>
+            </div>
+            {/* Right red section: FOURS */}
+            <div className="relative z-10 pl-8 pr-5 py-1.5">
+              <span className="font-marquee tracking-[0.4em] text-xs text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">FOURS</span>
+            </div>
           </div>
           <h1 className="font-display font-black text-5xl sm:text-7xl gold-text leading-none">
             Deal. Score. Win.

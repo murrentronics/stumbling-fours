@@ -1,11 +1,9 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { useApp, type Match, type Team, winnerIsTeamA } from "@/lib/store";
 import { HangJackOverlay } from "./HangJackOverlay";
 import { Crown, Spade, Heart, Diamond, Club, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { appMusic } from "@/lib/appMusic";
-import { Link } from "@tanstack/react-router";
 
 /** Fetch avatar_url for a player by email — cached in module scope */
 const avatarCache = new Map<string, string | null>();
@@ -41,18 +39,6 @@ export function LiveTable({ match }: { match: Match }) {
     () => allEntries.filter((e) => e.matchId === match.id).slice(0, 6),
     [allEntries, match.id],
   );
-
-  // ── Silence music while at the live table ────────────────────────────────
-  // Remember whether music was playing when we arrived, resume on exit.
-  const musicWasPlaying = useRef(false);
-  useEffect(() => {
-    musicWasPlaying.current = appMusic.playing;
-    if (appMusic.playing) appMusic.stop();
-    return () => {
-      // Only resume if it was playing before we entered
-      if (musicWasPlaying.current) appMusic.start();
-    };
-  }, []);
 
   // ── Scorer selection ──────────────────────────────────────────────────────
   // For each team, exactly ONE player gets the scoring panel.
@@ -138,8 +124,9 @@ export function LiveTable({ match }: { match: Match }) {
               <Lock className="h-10 w-10 text-white/80" />
               <div className="font-display font-black text-lg text-white/90 tracking-wide">Table Locked</div>
               {pendingWinner && (
-                <div className="text-sm text-white/60 mt-0.5">
-                  <span style={{ color: `var(--${pendingWinner.color})` }}>{pendingWinner.name}</span> reached 14 — pending approval
+                <div className="font-display font-black text-base text-center mt-1"
+                     style={{ color: `var(--${pendingWinner.color})` }}>
+                  {pendingWinner.name} — {match.winnerId === match.teamA.id ? match.scoreA : match.scoreB} pts
                 </div>
               )}
             </div>
@@ -173,14 +160,9 @@ export function LiveTable({ match }: { match: Match }) {
             <p className="text-sm text-foreground/60 max-w-xs">
               A team has reached 14 points. The admin must approve or reject the result before play continues.
             </p>
-            <Link
-              to="/tables"
-              search={{ tab: "history" } as never}
-              className="mt-1 chip-button chip-button-hover text-sm"
-              style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}
-            >
-              View Game Stats in History
-            </Link>
+            <p className="mt-1 text-xs text-foreground/45 italic">
+              View game stats in the Past tab once approved.
+            </p>
           </div>
         ) : (
           /* score entry — scorer for each team sees their panel; everyone else spectates */
@@ -425,7 +407,7 @@ function Seat({
   const Icon = SeatIcons[Math.abs((player.email ?? "").length) % 4];
 
   return (
-    <div className={`absolute ${positions[pos]} flex items-center gap-2`}>
+    <div className={`absolute ${positions[pos]} flex flex-col items-center gap-1`}>
       {/* Avatar circle with thick team-colour border */}
       <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full overflow-hidden flex-shrink-0 border-[3px]"
            style={{
@@ -442,9 +424,12 @@ function Seat({
           </div>
         )}
       </div>
-      <div className="hidden sm:block leading-tight">
-        <div className="font-display font-bold text-sm">{player.name}</div>
-        <div className="text-[10px] uppercase tracking-wider text-foreground/60">{team.name}</div>
+      {/* Name below the avatar — always visible */}
+      <div className="text-center leading-tight max-w-[72px]">
+        <div className="font-display font-bold text-[10px] sm:text-xs truncate"
+             style={{ color: `var(--${team.color})`, textShadow: `0 1px 4px oklch(0 0 0 / 80%)` }}>
+          {player.name || player.email.split("@")[0]}
+        </div>
       </div>
     </div>
   );
