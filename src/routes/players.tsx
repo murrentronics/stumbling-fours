@@ -48,7 +48,7 @@ function PlayersPage() {
     const [{ data: p }, { data: b }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id,email,display_name,avatar_url,created_at")
+        .select("id,email,display_name,avatar_url,status,created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("banned_emails")
@@ -56,19 +56,12 @@ function PlayersPage() {
         .order("banned_at", { ascending: false }),
     ]);
 
-    const { data: statusRows } = await supabase
-      .from("profiles")
-      .select("id,status");
-    const statusMap = new Map<string, string>(
-      (statusRows ?? []).map((r: { id: string; status: string | null }) => [r.id, r.status ?? "active"])
-    );
-
     setPlayers(
-      ((p as Omit<Player, "status">[]) ?? [])
+      ((p as Player[]) ?? [])
         .filter((pl) => pl.id !== user?.id)
         .map((pl) => ({
           ...pl,
-          status: (statusMap.get(pl.id) ?? "active") as PlayerStatus,
+          status: (pl.status ?? "active") as PlayerStatus,
         }))
     );
     setBannedEmails((b as BannedEmail[]) ?? []);
@@ -96,7 +89,12 @@ function PlayersPage() {
     setBusy(id);
     // Optimistic update — move the card immediately in the UI
     setPlayers((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
-    await supabase.from("profiles").update({ status }).eq("id", id);
+    const { error } = await supabase.from("profiles").update({ status }).eq("id", id);
+    if (error) {
+      // Write failed — reload to restore true state
+      console.error("setStatus failed:", error);
+      await load();
+    }
     setBusy(null);
   };
 
@@ -108,8 +106,14 @@ function PlayersPage() {
     setBusy(player.id);
     // Optimistic update — move card to banned tab immediately
     setPlayers((prev) => prev.map((p) => p.id === player.id ? { ...p, status: "banned" } : p));
-    await supabase.from("banned_emails").upsert({ email: player.email, banned_by: user?.id }, { onConflict: "email" });
-    await supabase.from("profiles").update({ status: "banned" }).eq("id", player.id);
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from("banned_emails").upsert({ email: player.email, banned_by: user?.id }, { onConflict: "email" }),
+      supabase.from("profiles").update({ status: "banned" }).eq("id", player.id),
+    ]);
+    if (e1 || e2) {
+      console.error("ban failed:", e1, e2);
+      await load();
+    }
     setBusy(null);
   };
 
@@ -417,8 +421,7 @@ function MembersTab({
   return (
     <div className="space-y-2">
       <div className="text-xs text-foreground/50 mb-3">
-        {players.filter((p) => p.status === "active").length} active ·{" "}
-        {players.filter((p) => p.status === "suspended").length} suspended
+        {players.filter((p) => p.status === "active").length} active
       </div>
       {players.map((p) => (
         <PlayerRow
