@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Android signing — never commit keystores or encoded copies
+*.jks
+*.keystore
+*.b64.txt
+android/app/stumbling-fours.jks

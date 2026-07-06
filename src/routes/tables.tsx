@@ -165,13 +165,25 @@ function LiveTab() {
     }
   }, [matches]);
 
+  // Group live matches by tournament — must be before any early returns (Rules of Hooks)
+  const byTournament = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; matches: typeof matches }>();
+    for (const m of matches) {
+      const tid = m.tournamentId ?? "unknown";
+      const tname = m.tournamentName ?? "Tournament";
+      if (!map.has(tid)) map.set(tid, { id: tid, name: tname, matches: [] });
+      map.get(tid)!.matches.push(m);
+    }
+    return Array.from(map.values());
+  }, [matches]);
+
   if (matches.length === 0)
     return <Empty icon={<Clock className="h-6 w-6" />} title="No live tables" body="Start a tournament round to bring tables online." />;
 
   // ── Detail view ────────────────────────────────────────────────────────
   if (view.level === "detail") {
     const active = matches.find((m) => m.id === view.matchId) ?? null;
-    if (!active) { setView({ level: "tournaments" }); return null; }
+    if (!active) return null; // useEffect will redirect back
     return (
       <div className="space-y-4">
         <button
@@ -186,18 +198,6 @@ function LiveTab() {
       </div>
     );
   }
-
-  // Group live matches by tournament
-  const byTournament = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; matches: typeof matches }>();
-    for (const m of matches) {
-      const tid = m.tournamentId ?? "unknown";
-      const tname = m.tournamentName ?? "Tournament";
-      if (!map.has(tid)) map.set(tid, { id: tid, name: tname, matches: [] });
-      map.get(tid)!.matches.push(m);
-    }
-    return Array.from(map.values());
-  }, [matches]);
 
   // ── Tables view (within one tournament) ───────────────────────────────
   if (view.level === "tables") {

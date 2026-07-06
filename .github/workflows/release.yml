@@ -48,8 +48,11 @@ jobs:
         id: version
         run: |
           VERSION=$(grep 'VITE_APP_VERSION' .env | sed 's/VITE_APP_VERSION="\(.*\)"/\1/')
+          # Use total git commit count as a strictly-increasing build number
+          BUILD_NUMBER=$(git rev-list --count HEAD)
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "TAG=v$VERSION" >> $GITHUB_OUTPUT
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
 
       # ── 8. Copy web assets into Android assets folder ─────────────────────
       - name: Copy web assets to Android
@@ -108,6 +111,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          BUILD_NUMBER: ${{ steps.version.outputs.BUILD_NUMBER }}
+          VERSION_NAME: ${{ steps.version.outputs.VERSION }}
 
       # ── 14. Rename APK ─────────────────────────────────────────────────────
       - name: Rename APK
