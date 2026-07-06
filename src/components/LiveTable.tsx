@@ -33,12 +33,20 @@ export function LiveTable({ match }: { match: Match }) {
   const addEntry = useApp((s) => s.addEntry);
   const updateMatch = useApp((s) => s.updateMatch);
   const triggerHangJack = useApp((s) => s.triggerHangJack);
+  const clearHangJack = useApp((s) => s.clearHangJack);
   const flash = useApp((s) => s.hangJackFlash[match.tableId]);
   const allEntries = useApp((s) => s.entries);
   const entries = useMemo(
     () => allEntries.filter((e) => e.matchId === match.id).slice(0, 6),
     [allEntries, match.id],
   );
+
+  // Clear hang jack overlay the moment the match ends (pending or completed)
+  useEffect(() => {
+    if (match.status === "pending" || match.status === "completed") {
+      clearHangJack(match.tableId);
+    }
+  }, [match.status, match.tableId, clearHangJack]);
 
   // ── Scorer selection ──────────────────────────────────────────────────────
   // For each team, exactly ONE player gets the scoring panel.

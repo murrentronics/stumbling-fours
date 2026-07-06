@@ -367,18 +367,24 @@ function PendingTab({
           busy={busy}
           actions={
             <>
-              <ActionButton
+              <button
                 onClick={() => onApprove(p.id)}
-                title="Approve"
-                icon={<Check className="h-3.5 w-3.5" />}
-                color="oklch(0.62 0.18 160)"
-              />
-              <ActionButton
+                className="flex flex-1 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.62 0.18 160 / 15%)", color: "oklch(0.72 0.18 160)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.62 0.18 160 / 25%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.62 0.18 160 / 15%)")}
+              >
+                <Check className="h-3.5 w-3.5" /> Approve
+              </button>
+              <button
                 onClick={() => onReject(p)}
-                title="Reject & ban"
-                icon={<X className="h-3.5 w-3.5" />}
-                color="oklch(0.62 0.22 25)"
-              />
+                className="flex flex-1 items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.62 0.22 25 / 15%)", color: "oklch(0.75 0.18 25)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.62 0.22 25 / 25%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.62 0.22 25 / 15%)")}
+              >
+                <X className="h-3.5 w-3.5" /> Decline
+              </button>
             </>
           }
         />

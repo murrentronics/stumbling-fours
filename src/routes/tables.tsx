@@ -696,6 +696,7 @@ function PendingTab() {
 function HistoryTab() {
   const allMatches = useApp((s) => s.matches);
   const allEntries = useApp((s) => s.entries);
+  const setMatches = useApp((s) => s.setMatches);
 
   const completed = allMatches.filter((m) => m.status === "completed");
 
@@ -742,6 +743,10 @@ function HistoryTab() {
             matches={sorted}
             maxRound={maxRound}
             allEntries={allEntries}
+            onDelete={() => {
+              if (!confirm(`Delete "${grp.name}" from history? This cannot be undone.`)) return;
+              setMatches(allMatches.filter((m) => m.tournamentId !== grp.id));
+            }}
           />
         );
       })}
@@ -753,38 +758,51 @@ type MatchEntry = import("@/lib/store").RoundEntry;
 type MatchItem = import("@/lib/store").Match;
 
 function TournamentAccordion({
-  name, dateRange, matches, maxRound, allEntries,
+  name, dateRange, matches, maxRound, allEntries, onDelete,
 }: {
   name: string;
   dateRange: string;
   matches: MatchItem[];
   maxRound: number;
   allEntries: MatchEntry[];
+  onDelete?: () => void;
 }) {
+  const role = useApp((s) => s.role);
   const [open, setOpen] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="ornate-border overflow-hidden">
       {/* Tournament accordion header */}
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center gap-4 p-5 text-left"
-        style={{ background: "oklch(0.20 0.06 150 / 60%)" }}
-      >
-        <div className="h-10 w-10 rounded-full grid place-items-center flex-shrink-0"
-             style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}>
-          <Trophy className="h-5 w-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-display font-black text-base gold-text leading-snug">{name}</div>
-          <div className="font-marquee text-xs tracking-[0.25em] text-foreground/55 mt-0.5">{dateRange}</div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs text-foreground/50">{matches.length} games</span>
-          {open ? <ChevronUp className="h-4 w-4 text-foreground/50" /> : <ChevronDown className="h-4 w-4 text-foreground/50" />}
-        </div>
-      </button>
+      <div className="relative flex items-center gap-4 p-5"
+           style={{ background: "oklch(0.20 0.06 150 / 60%)" }}>
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="flex items-center gap-4 flex-1 min-w-0 text-left"
+        >
+          <div className="h-10 w-10 rounded-full grid place-items-center flex-shrink-0"
+               style={{ background: "var(--gradient-gold)", color: "oklch(0.18 0.05 150)" }}>
+            <Trophy className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-black text-base gold-text leading-snug">{name}</div>
+            <div className="font-marquee text-xs tracking-[0.25em] text-foreground/55 mt-0.5">{dateRange}</div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs text-foreground/50">{matches.length} games</span>
+            {open ? <ChevronUp className="h-4 w-4 text-foreground/50" /> : <ChevronDown className="h-4 w-4 text-foreground/50" />}
+          </div>
+        </button>
+        {role === "admin" && onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="flex-shrink-0 p-2 rounded-md transition hover:bg-red-500/20"
+            title="Delete tournament from history"
+          >
+            <Trash2 className="h-4 w-4 text-red-400" />
+          </button>
+        )}
+      </div>
 
       {/* Match list */}
       {open && (

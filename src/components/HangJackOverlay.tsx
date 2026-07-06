@@ -101,7 +101,12 @@ export function HangJackOverlay({ flashAt, tableId }: { flashAt?: number; tableI
     const clear = setTimeout(() => {
       import("@/lib/store").then(({ useApp }) => useApp.getState().clearHangJack(tableId));
     }, 3400);
-    return () => { clearTimeout(hide); clearTimeout(clear); };
+    return () => {
+      clearTimeout(hide);
+      clearTimeout(clear);
+      // Always clear on unmount so stale flash never re-triggers
+      import("@/lib/store").then(({ useApp }) => useApp.getState().clearHangJack(tableId));
+    };
   }, [flashAt, tableId]);
 
   return (
