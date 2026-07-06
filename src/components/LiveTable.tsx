@@ -134,10 +134,10 @@ export function LiveTable({ match }: { match: Match }) {
 
           {/* score */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10
-                          flex items-center gap-4 px-5 py-2 rounded-full"
+                          flex items-center gap-2 sm:gap-4 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full"
                style={{ background: "oklch(0.10 0.03 150 / 85%)", border: "2px solid oklch(0.83 0.16 88)" }}>
             <ScoreNum value={match.scoreA} color={match.teamA.color} />
-            <span className="font-display font-black text-foreground/50">VS</span>
+            <span className="font-display font-black text-xs sm:text-base text-foreground/50">VS</span>
             <ScoreNum value={match.scoreB} color={match.teamB.color} />
           </div>
 
@@ -349,11 +349,14 @@ function RoundPointsLog({ entries, match }: {
 
 function entryBadges(e?: import("@/lib/store").RoundEntry): string[] {
   if (!e) return [];
+  const k = e.kick ?? 0;
+  const kickLabel = k === 1 ? "K-Ace" : k === 2 ? "K-Six" : k === 3 ? "K-Jack" : null;
   return [
-    e.high && "H",
-    e.low && "L",
+    e.high  && "H",
+    e.low   && "L",
     e.jack === 3 ? "HJ" : e.jack === 1 ? "J" : null,
-    e.game && "G",
+    e.game  && "G",
+    kickLabel,
   ].filter((v): v is string => Boolean(v));
 }
 
@@ -363,7 +366,7 @@ function ScoreNum({ value, color }: { value: number; color: string }) {
       key={value}
       initial={{ scale: 1.4, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className="font-display font-black text-4xl sm:text-5xl"
+      className="font-display font-black text-2xl sm:text-5xl"
       style={{ color: `var(--${color})`, textShadow: `0 0 20px var(--${color})` }}
     >
       {value}
@@ -449,12 +452,13 @@ function ScoreEntry({
   const [low, setLow] = useState(false);
   const [jack, setJack] = useState(false);
   const [game, setGame] = useState(false);
+  const [kick, setKick] = useState<0 | 1 | 2 | 3>(0); // 0=none, 1=Ace, 2=Six, 3=Jack
 
   const jackPts = jack ? 3 : 0;
-  const total = (high ? 1 : 0) + (low ? 1 : 0) + jackPts + (game ? 2 : 0);
+  const total = (high ? 1 : 0) + (low ? 1 : 0) + jackPts + (game ? 2 : 0) + kick;
   const canSubmit = total > 0;
 
-  const reset = () => { setHigh(false); setLow(false); setJack(false); setGame(false); };
+  const reset = () => { setHigh(false); setLow(false); setJack(false); setGame(false); setKick(0); };
 
   return (
     <div className="rounded-xl p-4 border-2"
@@ -471,23 +475,27 @@ function ScoreEntry({
         </div>
       </div>
 
+      {/* High / Low / Hang Jack / Game */}
       <div className="grid grid-cols-4 gap-2">
         <PointBtn label="High" value="+1" active={high} onClick={() => setHigh(!high)} />
         <PointBtn label="Low" value="+1" active={low} onClick={() => setLow(!low)} />
-        <PointBtn
-          label="Hang Jack"
-          value="+3"
-          active={jack}
-          onClick={() => setJack(!jack)}
-          accent
-        />
+        <PointBtn label="Hang Jack" value="+3" active={jack} onClick={() => setJack(!jack)} accent />
         <PointBtn label="Game" value="+2" active={game} onClick={() => setGame(!game)} />
+      </div>
+
+      {/* Kick card row */}
+      <div className="mt-2">
+        <div className="text-[9px] uppercase tracking-[0.25em] text-foreground/40 mb-1.5">Kick Card (dealer bonus)</div>
+        <div className="grid grid-cols-3 gap-2">
+          <PointBtn label="Ace" value="+1" active={kick === 1} onClick={() => setKick(kick === 1 ? 0 : 1)} dim />
+          <PointBtn label="Six" value="+2" active={kick === 2} onClick={() => setKick(kick === 2 ? 0 : 2)} dim />
+          <PointBtn label="Jack" value="+3" active={kick === 3} onClick={() => setKick(kick === 3 ? 0 : 3)} dim />
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-foreground/70">
           Total: <span className="font-display font-black text-xl gold-text">{total}</span>
-          <span className="text-xs text-foreground/40 ml-2">(max 7)</span>
         </div>
         <button
           disabled={!canSubmit}
@@ -498,7 +506,7 @@ function ScoreEntry({
               matchId: match.id,
               teamId: team.id,
               teamName: team.name,
-              high, low, jack: jackPts, game, total,
+              high, low, jack: jackPts, game, kick, total,
               submittedBy: currentUserEmail,
               ts: Date.now(),
             });
@@ -514,8 +522,8 @@ function ScoreEntry({
 }
 
 function PointBtn({
-  label, value, active, onClick, accent,
-}: { label: string; value: string; active: boolean; onClick: () => void; accent?: boolean }) {
+  label, value, active, onClick, accent, dim,
+}: { label: string; value: string; active: boolean; onClick: () => void; accent?: boolean; dim?: boolean }) {
   return (
     <button
       onClick={onClick}
@@ -524,13 +532,21 @@ function PointBtn({
       }`}
       style={{
         background: active
-          ? accent ? "var(--gradient-crimson)" : "var(--gradient-gold)"
+          ? dim
+            ? "oklch(0.55 0.14 220 / 80%)"
+            : accent ? "var(--gradient-crimson)" : "var(--gradient-gold)"
           : "oklch(0.22 0.06 150)",
         borderColor: active
-          ? accent ? "oklch(0.62 0.24 25)" : "oklch(0.83 0.16 88)"
+          ? dim
+            ? "oklch(0.65 0.16 220)"
+            : accent ? "oklch(0.62 0.24 25)" : "oklch(0.83 0.16 88)"
           : "oklch(0.83 0.16 88 / 25%)",
-        color: active && !accent ? "oklch(0.18 0.05 150)" : "var(--color-foreground)",
-        boxShadow: active ? "0 0 20px oklch(0.83 0.16 88 / 40%)" : "none",
+        color: active && !accent && !dim ? "oklch(0.18 0.05 150)" : "var(--color-foreground)",
+        boxShadow: active
+          ? dim
+            ? "0 0 16px oklch(0.55 0.14 220 / 40%)"
+            : "0 0 20px oklch(0.83 0.16 88 / 40%)"
+          : "none",
       }}
     >
       <div className="font-display font-bold text-xs uppercase tracking-wider">{label}</div>

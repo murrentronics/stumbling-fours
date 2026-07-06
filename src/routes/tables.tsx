@@ -1020,6 +1020,9 @@ function EntryColumn({ entries, team }: {
           e.jack === 3 && { label: "HJ", title: "Hang Jack", red: true },
           e.jack === 1 && { label: "J",  title: "Jack",      gold: true },
           e.game  && { label: "G",  title: "Game",      gold: true  },
+          e.kick === 1 && { label: "K-A", title: "Kick Ace",  gold: true },
+          e.kick === 2 && { label: "K-6", title: "Kick Six",  gold: true },
+          e.kick === 3 && { label: "K-J", title: "Kick Jack", gold: true },
         ].filter(Boolean) as { label: string; title: string; gold?: boolean; red?: boolean }[];
 
         return (

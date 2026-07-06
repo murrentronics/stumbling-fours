@@ -72,14 +72,22 @@ function Home() {
       {/* rules summary */}
       <section className="mt-10 ornate-border p-6 sm:p-8">
         <h2 className="font-display font-black text-2xl gold-text mb-4">The Stumbling Fours Scorecard</h2>
-        <div className="grid sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <RuleChip label="High" value="+1" />
           <RuleChip label="Low" value="+1" />
-          <RuleChip label="Jack" value="+1 · Hang Jack +3" accent />
+          <RuleChip label="Jack" value="+3" accent />
           <RuleChip label="Game" value="+2" />
         </div>
+        <div className="mt-3">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-foreground/45 mb-2">Kick Card (dealer bonus)</div>
+          <div className="grid grid-cols-3 gap-3">
+            <RuleChip label="Ace" value="+1" kick />
+            <RuleChip label="Six" value="+2" kick />
+            <RuleChip label="Jack" value="+3" kick />
+          </div>
+        </div>
         <p className="mt-4 text-sm text-foreground/65">
-          Max <span className="font-display font-bold gold-text">7 points</span> per round. First team to <span className="font-display font-bold gold-text">14</span> wins the game. Admin approves every match win before it locks.
+          First team to <span className="font-display font-bold gold-text">14</span> wins the game. Admin approves every match win before it locks.
         </p>
       </section>
     </div>
@@ -101,12 +109,12 @@ function StatCard({ icon, label, value, small }: { icon: React.ReactNode; label:
   );
 }
 
-function RuleChip({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function RuleChip({ label, value, accent, kick }: { label: string; value: string; accent?: boolean; kick?: boolean }) {
   return (
     <div className="rounded-lg p-3 text-center border-2"
          style={{
            background: "oklch(0.18 0.05 150 / 80%)",
-           borderColor: accent ? "oklch(0.62 0.24 25)" : "oklch(0.83 0.16 88 / 40%)",
+           borderColor: accent ? "oklch(0.62 0.24 25)" : kick ? "oklch(0.55 0.14 220 / 60%)" : "oklch(0.83 0.16 88 / 40%)",
          }}>
       <div className="font-display font-bold uppercase tracking-wider text-sm">{label}</div>
       <div className="font-marquee text-xl tracking-wider gold-text">{value}</div>

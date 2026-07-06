@@ -122,6 +122,7 @@ export type RoundEntry = {
   low: boolean;
   jack: number; // 0 or 3
   game: boolean;
+  kick?: number; // 0, 1 (Ace), 2 (Six), or 3 (Jack) — dealer kick card bonus; optional for backwards compat
   total: number;
   submittedBy: string;
   ts: number;

@@ -42,10 +42,7 @@ function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [bannedEmails, setBannedEmails] = useState<BannedEmail[]>([]);
   const [search, setSearch] = useState("");
-  const [busy, setBusy] = useState<string | null>(null); // tracks which player id is processing
-
-  if (loading) return null;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = async () => {
     const [{ data: p }, { data: b }] = await Promise.all([
@@ -59,7 +56,6 @@ function PlayersPage() {
         .order("banned_at", { ascending: false }),
     ]);
 
-    // Fetch status separately — the column may not exist yet in all environments
     const { data: statusRows } = await supabase
       .from("profiles")
       .select("id,status");
@@ -78,8 +74,8 @@ function PlayersPage() {
     setBannedEmails((b as BannedEmail[]) ?? []);
   };
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
+    if (!isAdmin) return;
     void load();
     const ch = supabase
       .channel("players_page_rt")
@@ -88,12 +84,18 @@ function PlayersPage() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAdmin]);
+
+  // Guards — after all hooks
+  if (loading) return null;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
   const setStatus = async (id: string, status: PlayerStatus) => {
     setBusy(id);
+    // Optimistic update — move the card immediately in the UI
+    setPlayers((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
     await supabase.from("profiles").update({ status }).eq("id", id);
     setBusy(null);
   };
@@ -104,9 +106,9 @@ function PlayersPage() {
   const ban = async (player: Player) => {
     if (!confirm(`Ban ${player.display_name || player.email}? Their email will be blocklisted.`)) return;
     setBusy(player.id);
-    // 1. Add to banned_emails blocklist
+    // Optimistic update — move card to banned tab immediately
+    setPlayers((prev) => prev.map((p) => p.id === player.id ? { ...p, status: "banned" } : p));
     await supabase.from("banned_emails").upsert({ email: player.email, banned_by: user?.id }, { onConflict: "email" });
-    // 2. Mark profile as banned
     await supabase.from("profiles").update({ status: "banned" }).eq("id", player.id);
     setBusy(null);
   };
