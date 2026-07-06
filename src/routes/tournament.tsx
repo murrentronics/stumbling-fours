@@ -124,8 +124,9 @@ function TournamentPage() {
   const lock = () => {
     const teams = buildTeams();
     const scheduledDate = scheduledInput ? new Date(scheduledInput).getTime() : undefined;
+    const trnId = tournament?.id ?? `trn-${Date.now()}`;
     setTournament({
-      id: tournament?.id ?? `trn-${Date.now()}`,
+      id: trnId,
       name, playersPerTeam: pp, gamesPerRound: 1,
       prizes: { first, second, third },
       teams,
@@ -137,8 +138,10 @@ function TournamentPage() {
   const startRound = () => {
     const teams = buildTeams();
     const scheduledDate = scheduledInput ? new Date(scheduledInput).getTime() : undefined;
+    const isFuture = scheduledDate && scheduledDate > Date.now();
+    const trnId = `trn-${Date.now()}`;
     setTournament({
-      id: tournament?.id ?? `trn-${Date.now()}`,
+      id: trnId,
       name, playersPerTeam: pp, gamesPerRound: 1,
       prizes: { first, second, third },
       teams,
@@ -154,13 +157,13 @@ function TournamentPage() {
         id: `m-${Date.now()}-${i}`,
         tableId: `T-${i / 2 + 1}`,
         tableName: `Table ${i / 2 + 1}`,
-        tournamentId: tournament?.id ?? `trn-${Date.now()}`,
+        tournamentId: trnId,
         tournamentName: name,
         teamA: a, teamB: b,
         scoreA: 0, scoreB: 0,
-        status: "live",
+        status: isFuture ? "scheduled" : "live",
         round: 1,
-        startedAt: Date.now(),
+        startedAt: isFuture ? scheduledDate! : Date.now(),
       });
     }
     const past = existingMatches.filter((m) => m.status === "completed");

@@ -137,7 +137,7 @@ export type Match = {
   teamB: Team;
   scoreA: number;
   scoreB: number;
-  status: "live" | "pending" | "completed";
+  status: "scheduled" | "live" | "pending" | "completed";
   winnerId?: string;
   disqualifiedTeamId?: string; // set when match ended by DQ
   round: number;

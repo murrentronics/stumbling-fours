@@ -148,7 +148,7 @@ function TeamsPage() {
           <div className="flex flex-wrap gap-2 items-center">
             <input
               className="ts-input flex-1 min-w-[220px]"
-              placeholder="Team name (e.g. Port of Spade)"
+              placeholder=""
               value={name}
               onChange={(e) => setName(e.target.value)}
             />

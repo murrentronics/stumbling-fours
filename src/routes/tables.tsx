@@ -27,7 +27,7 @@ function Tables() {
 
   // ── Realtime badge counts ────────────────────────────────────────────────
   const liveCount     = allMatches.filter((m) => m.status === "live" || m.status === "pending").length;
-  const upcomingCount = tournament?.scheduledDate && tournament.scheduledDate > Date.now() ? 1 : 0;
+  const upcomingCount = allMatches.filter((m) => m.status === "scheduled").length;
   const historyCount  = allMatches.filter((m) => m.status === "completed").length;
   const pendingCount  = allMatches.filter((m) => m.status === "pending").length;
 
@@ -391,12 +391,26 @@ function UpcomingTab() {
   const allMatches = useApp((s) => s.matches);
   const role = useApp((s) => s.role);
   const setTournament = useApp((s) => s.setTournament);
+  const updateMatch = useApp((s) => s.updateMatch);
 
-  // An upcoming tournament is one with a future scheduledDate and no live/pending matches yet
-  const hasScheduled = tournament?.scheduledDate && tournament.scheduledDate > Date.now();
-  const hasLiveMatches = allMatches.some((m) => m.status === "live" || m.status === "pending");
+  // Scheduled matches — status is "scheduled", waiting for startedAt time
+  const scheduledMatches = allMatches.filter((m) => m.status === "scheduled");
 
-  if (!tournament || !hasScheduled) {
+  // Real-time: check every second if any scheduled match's startedAt has passed → flip to "live"
+  useEffect(() => {
+    if (scheduledMatches.length === 0) return;
+    const id = setInterval(() => {
+      const now = Date.now();
+      scheduledMatches.forEach((m) => {
+        if (m.startedAt <= now) {
+          updateMatch(m.id, { status: "live", startedAt: now });
+        }
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [scheduledMatches, updateMatch]);
+
+  if (scheduledMatches.length === 0) {
     return (
       <Empty
         icon={<Timer className="h-6 w-6" />}
@@ -405,14 +419,21 @@ function UpcomingTab() {
     );
   }
 
+  // Get tournament info for the scheduled matches
+  const tournamentName = tournament?.name ?? scheduledMatches[0]?.tournamentName ?? "Tournament";
+  // All scheduled matches share the same startedAt (set to scheduledDate at creation)
+  const scheduledDate = scheduledMatches[0].startedAt;
+
   return (
     <div className="space-y-4">
       <UpcomingCard
-        tournament={tournament}
-        hasLiveMatches={hasLiveMatches}
+        tournament={tournament ?? { id: "", name: tournamentName, playersPerTeam: 2, gamesPerRound: 1, prizes: { first: "" }, teams: [], createdAt: 0, scheduledDate }}
+        hasLiveMatches={false}
         isAdmin={role === "admin"}
         onDelete={() => {
-          if (!confirm(`Cancel "${tournament.name}"? This will remove the scheduled tournament.`)) return;
+          if (!confirm(`Cancel "${tournamentName}"? This will remove the scheduled tournament.`)) return;
+          // Remove scheduled matches and clear tournament
+          useApp.getState().setMatches(allMatches.filter((m) => m.status !== "scheduled"));
           setTournament(null);
         }}
       />
@@ -560,14 +581,16 @@ function UpcomingCard({
                 if (teams.length % 2 !== 0) pairs.push([teams[teams.length - 1], undefined]);
                 return pairs.map((pair, i) => (
                   <div key={i}
-                       className="rounded-xl px-4 py-3 flex items-center gap-3"
+                       className="rounded-xl px-4 py-3 flex items-start gap-3"
                        style={{ background: "oklch(0.18 0.05 150 / 80%)", border: "1px solid oklch(0.83 0.16 88 / 20%)" }}>
-                    <TeamPill team={pair[0]} />
-                    <span className="font-marquee text-xs text-foreground/40 tracking-widest flex-shrink-0">VS</span>
+                    <TeamRoster team={pair[0]} />
+                    <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-1">
+                      <span className="font-marquee text-xs text-foreground/40 tracking-widest">VS</span>
+                      <span className="text-[10px] text-foreground/35 whitespace-nowrap">Table {i + 1}</span>
+                    </div>
                     {pair[1]
-                      ? <TeamPill team={pair[1]} />
-                      : <span className="text-xs text-foreground/40 italic flex-1">Bye</span>}
-                    <span className="text-[10px] text-foreground/35 flex-shrink-0">Table {i + 1}</span>
+                      ? <TeamRoster team={pair[1]} />
+                      : <span className="text-xs text-foreground/40 italic flex-1 pt-1">Bye</span>}
                   </div>
                 ));
               })()}
@@ -600,6 +623,32 @@ function TeamPill({ team }: { team: import("@/lib/store").Team }) {
             style={{ color: `var(--${team.color})` }}>
         {team.name}
       </span>
+    </div>
+  );
+}
+
+function TeamRoster({ team }: { team: import("@/lib/store").Team }) {
+  return (
+    <div className="flex-1 min-w-0 space-y-1">
+      <div className="flex items-center gap-1.5">
+        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+             style={{ background: `var(--${team.color})` }} />
+        <span className="font-display font-bold text-sm truncate"
+              style={{ color: `var(--${team.color})` }}>
+          {team.name}
+        </span>
+      </div>
+      {team.players.length > 0 ? (
+        <div className="pl-4 space-y-0.5">
+          {team.players.map((p, i) => (
+            <div key={i} className="text-[11px] text-foreground/60 truncate">
+              {p.name || p.email.split("@")[0]}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="pl-4 text-[11px] text-foreground/35 italic">No players assigned</div>
+      )}
     </div>
   );
 }
