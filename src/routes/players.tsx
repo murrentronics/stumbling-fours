@@ -287,37 +287,43 @@ function PlayerRow({
 
   return (
     <div
-      className="flex items-center gap-3 rounded-xl px-4 py-3"
+      className="rounded-xl overflow-hidden"
       style={{ background: "oklch(0.18 0.05 150 / 80%)", border: "1px solid oklch(0.83 0.16 88 / 18%)", opacity: isBusy ? 0.6 : 1 }}
     >
-      {/* Avatar */}
+      {/* Top row: avatar + info + status badge */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        {/* Avatar */}
+        <div
+          className="h-10 w-10 rounded-full flex-shrink-0 grid place-items-center overflow-hidden border-2 text-xs font-black"
+          style={{ borderColor: statusColor[player.status], background: "oklch(0.22 0.06 150)" }}
+        >
+          {player.avatar_url
+            ? <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
+            : <span style={{ color: statusColor[player.status] }}>{initials}</span>
+          }
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-sm truncate">{player.display_name || player.email.split("@")[0]}</div>
+          <div className="text-[11px] text-foreground/50 truncate">{player.email}</div>
+          <div className="text-[10px] text-foreground/35 mt-0.5">Joined {joined}</div>
+        </div>
+
+        {/* Status badge */}
+        <span
+          className="flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider"
+          style={{ background: `${statusColor[player.status]}25`, color: statusColor[player.status] }}
+        >
+          {player.status}
+        </span>
+      </div>
+
+      {/* Bottom action row */}
       <div
-        className="h-10 w-10 rounded-full flex-shrink-0 grid place-items-center overflow-hidden border-2 text-xs font-black"
-        style={{ borderColor: statusColor[player.status], background: "oklch(0.22 0.06 150)" }}
+        className="flex items-center gap-2 px-4 py-2.5 border-t"
+        style={{ borderColor: "oklch(0.83 0.16 88 / 12%)", background: "oklch(0.15 0.04 150 / 60%)" }}
       >
-        {player.avatar_url
-          ? <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
-          : <span style={{ color: statusColor[player.status] }}>{initials}</span>
-        }
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="font-bold text-sm truncate">{player.display_name || player.email.split("@")[0]}</div>
-        <div className="text-[11px] text-foreground/50 truncate">{player.email}</div>
-        <div className="text-[10px] text-foreground/35 mt-0.5">Joined {joined}</div>
-      </div>
-
-      {/* Status badge */}
-      <span
-        className="flex-shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider hidden sm:block"
-        style={{ background: `${statusColor[player.status]}25`, color: statusColor[player.status] }}
-      >
-        {player.status}
-      </span>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0">
         {isBusy
           ? <RefreshCw className="h-4 w-4 text-foreground/40 animate-spin" />
           : actions
@@ -413,25 +419,33 @@ function MembersTab({
           busy={busy}
           actions={
             <>
-              <ActionButton
+              <button
                 onClick={() => onSuspend(p.id)}
-                title="Suspend (return to pending)"
-                icon={<ShieldOff className="h-3.5 w-3.5" />}
-                color="oklch(0.74 0.18 70)"
-              />
-              <ActionButton
+                className="flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.74 0.18 70 / 15%)", color: "oklch(0.74 0.18 70)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.74 0.18 70 / 25%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.74 0.18 70 / 15%)")}
+              >
+                Suspend
+              </button>
+              <button
                 onClick={() => onBan(p)}
-                title="Ban"
-                icon={<Ban className="h-3.5 w-3.5" />}
-                color="oklch(0.62 0.22 25)"
-              />
-              <ActionButton
+                className="flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.62 0.22 25 / 15%)", color: "oklch(0.75 0.18 25)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.62 0.22 25 / 25%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.62 0.22 25 / 15%)")}
+              >
+                Ban
+              </button>
+              <button
                 onClick={() => onDelete(p)}
-                title="Delete"
-                icon={<Trash2 className="h-3.5 w-3.5" />}
-                color="oklch(0.55 0.22 25)"
-                danger
-              />
+                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.55 0.22 25 / 20%)", color: "oklch(0.75 0.18 25)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.55 0.22 25 / 35%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.55 0.22 25 / 20%)")}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
             </>
           }
         />

@@ -34,20 +34,14 @@ function TournamentPage() {
   const setMatches = useApp((s) => s.setMatches);
   const existingMatches = useApp((s) => s.matches);
 
-  const [name, setName] = useState(tournament?.name ?? "");
-  const [pp, setPp] = useState(tournament?.playersPerTeam ?? 2);
-  const [first, setFirst] = useState(tournament?.prizes.first ?? "");
-  const [second, setSecond] = useState(tournament?.prizes.second ?? "");
-  const [third, setThird] = useState(tournament?.prizes.third ?? "");
+  const [name, setName] = useState("");
+  const [pp, setPp] = useState(2);
+  const [first, setFirst] = useState("");
+  const [second, setSecond] = useState("");
+  const [third, setThird] = useState("");
 
-  // Scheduled date — stored as YYYY-MM-DDTHH:mm for the datetime-local input
-  const toInputVal = (ts?: number) => {
-    if (!ts) return "";
-    const d = new Date(ts);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-  const [scheduledInput, setScheduledInput] = useState(toInputVal(tournament?.scheduledDate));
+
+  const [scheduledInput, setScheduledInput] = useState("");
 
   const [rosterTeams, setRosterTeams] = useState<RosterTeam[]>([]);
   const [rosterMembers, setRosterMembers] = useState<RosterMember[]>([]);

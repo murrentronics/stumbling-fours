@@ -22,12 +22,25 @@ type TabDef = { id: Tab; label: string; icon: LucideIcon };
 function Tables() {
   const role = useApp((s) => s.role);
   const allMatches = useApp((s) => s.matches);
-  const tournament = useApp((s) => s.tournament);
+  const updateMatch = useApp((s) => s.updateMatch);
   const [tab, setTab] = useState<Tab>("live");
 
+  // ── Flip scheduled → live when startedAt is reached (runs regardless of active tab) ──
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      useApp.getState().matches.forEach((m) => {
+        if (m.status === "scheduled" && m.startedAt <= now) {
+          updateMatch(m.id, { status: "live", startedAt: now });
+        }
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [updateMatch]);
+
   // ── Realtime badge counts ────────────────────────────────────────────────
-  const liveCount     = allMatches.filter((m) => m.status === "live" || m.status === "pending").length;
-  const upcomingCount = allMatches.filter((m) => m.status === "scheduled").length;
+  const liveCount     = allMatches.filter((m) => m.status === "live" || m.status === "pending" || (m.status === "scheduled" && m.startedAt <= Date.now())).length;
+  const upcomingCount = allMatches.filter((m) => m.status === "scheduled" && m.startedAt > Date.now()).length;
   const historyCount  = allMatches.filter((m) => m.status === "completed").length;
   const pendingCount  = allMatches.filter((m) => m.status === "pending").length;
 
@@ -391,24 +404,9 @@ function UpcomingTab() {
   const allMatches = useApp((s) => s.matches);
   const role = useApp((s) => s.role);
   const setTournament = useApp((s) => s.setTournament);
-  const updateMatch = useApp((s) => s.updateMatch);
 
-  // Scheduled matches — status is "scheduled", waiting for startedAt time
-  const scheduledMatches = allMatches.filter((m) => m.status === "scheduled");
-
-  // Real-time: check every second if any scheduled match's startedAt has passed → flip to "live"
-  useEffect(() => {
-    if (scheduledMatches.length === 0) return;
-    const id = setInterval(() => {
-      const now = Date.now();
-      scheduledMatches.forEach((m) => {
-        if (m.startedAt <= now) {
-          updateMatch(m.id, { status: "live", startedAt: now });
-        }
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [scheduledMatches, updateMatch]);
+  // Scheduled matches — status is "scheduled" and start time is still in the future
+  const scheduledMatches = allMatches.filter((m) => m.status === "scheduled" && m.startedAt > Date.now());
 
   if (scheduledMatches.length === 0) {
     return (
@@ -1270,10 +1268,24 @@ export function TournamentTabsView() {
   const role        = useApp((s) => s.role);
   const allMatches  = useApp((s) => s.matches);
   const tournament  = useApp((s) => s.tournament);
+  const updateMatch = useApp((s) => s.updateMatch);
   const [tab, setTab] = useState<Tab>("live");
 
-  const liveCount     = allMatches.filter((m) => m.status === "live" || m.status === "pending").length;
-  const upcomingCount = tournament?.scheduledDate && tournament.scheduledDate > Date.now() ? 1 : 0;
+  // ── Flip scheduled → live when startedAt is reached ──
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      useApp.getState().matches.forEach((m) => {
+        if (m.status === "scheduled" && m.startedAt <= now) {
+          updateMatch(m.id, { status: "live", startedAt: now });
+        }
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [updateMatch]);
+
+  const liveCount     = allMatches.filter((m) => m.status === "live" || m.status === "pending" || (m.status === "scheduled" && m.startedAt <= Date.now())).length;
+  const upcomingCount = allMatches.filter((m) => m.status === "scheduled" && m.startedAt > Date.now()).length;
   const historyCount  = allMatches.filter((m) => m.status === "completed").length;
   const pendingCount  = allMatches.filter((m) => m.status === "pending").length;
 

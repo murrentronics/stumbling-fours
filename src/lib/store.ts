@@ -208,11 +208,20 @@ export const useApp = create<State>((set) => ({
 
   _hydrating: false,
   hydrateSnapshot: (snap) =>
-    set((s) => ({
-      _hydrating: true,
-      tournament: snap?.tournament ?? null,
-      matches: snap?.matches ?? [],
-      entries: snap?.entries ?? [],
+    set((s) => {
+      // Fix any matches that were saved as "live" but have a future startedAt
+      // (created before the "scheduled" status existed)
+      const now = Date.now();
+      const fixedMatches = (snap?.matches ?? []).map((m) =>
+        m.status === "live" && m.startedAt > now
+          ? { ...m, status: "scheduled" as const }
+          : m
+      );
+      return {
+        _hydrating: true,
+        tournament: snap?.tournament ?? null,
+        matches: fixedMatches,
+        entries: snap?.entries ?? [],
       // Merge incoming hangJackFlash — only apply keys newer than what we already have
       // so a device that already cleared its own overlay doesn't re-fire
       hangJackFlash: snap?.hangJackFlash
@@ -222,7 +231,8 @@ export const useApp = create<State>((set) => ({
             )
           )
         : s.hangJackFlash,
-    })),
+      };
+    }),
 }));
 
 // Reset _hydrating flag immediately after apply (microtask so subscribers see it as true)
