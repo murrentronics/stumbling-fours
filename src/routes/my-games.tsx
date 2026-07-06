@@ -1,13 +1,13 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Gamepad2, Trophy, X as XIcon, ChevronDown, ChevronUp,
-  ArrowLeft, Spade, Users, Star, TrendingDown, CalendarDays,
+  ArrowLeft, Users, Star, TrendingDown, CalendarDays,
+  ArrowRight,
 } from "lucide-react";
 import { useApp, type Match, winnerIsTeamA } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
-import { LiveTable } from "@/components/LiveTable";
 
 export const Route = createFileRoute("/my-games")({
   head: () => ({
@@ -134,19 +134,14 @@ function MyGamesPage() {
 // ── Card 1: Live Table ────────────────────────────────────────────────────────
 
 function LiveCard({ liveMatch, email }: { liveMatch: Match | null; email: string }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div
-      className="ornate-border overflow-hidden transition-all"
+    <Link
+      to="/tables"
+      className="ornate-border overflow-hidden block transition-all hover:scale-[1.01]"
       style={{ borderColor: liveMatch ? "oklch(0.62 0.24 25)" : "oklch(0.83 0.16 88 / 25%)" }}
     >
-      <button
-        onClick={() => liveMatch && setOpen((v) => !v)}
-        className="w-full text-left p-5 flex items-center gap-4"
-        disabled={!liveMatch}
-      >
-        {/* pulse / icon */}
+      <div className="p-5 flex items-center gap-4">
+        {/* Pulse / icon */}
         <div
           className="h-14 w-14 flex-shrink-0 rounded-full grid place-items-center"
           style={{
@@ -170,13 +165,27 @@ function LiveCard({ liveMatch, email }: { liveMatch: Match | null; email: string
                style={{ color: liveMatch ? "oklch(0.95 0.05 60)" : "var(--color-foreground)" }}>
             {liveMatch ? `${liveMatch.tableName} — LIVE` : "No Active Table"}
           </div>
+
           {liveMatch ? (() => {
             const { myTeam, opponent, myScore, oppScore } = getMyTeamAndOpponent(liveMatch, email);
             return (
-              <div className="text-sm text-foreground/70 truncate mt-0.5">
-                <span style={{ color: `var(--${myTeam.color})` }}>{myTeam.name}</span>
-                <span className="mx-2 text-foreground/40">{myScore} — {oppScore}</span>
-                <span style={{ color: `var(--${opponent.color})` }}>{opponent.name}</span>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-display font-bold text-sm truncate max-w-[120px]"
+                      style={{ color: `var(--${myTeam.color})` }}>
+                  {myTeam.name}
+                </span>
+                <span className="font-display font-black text-lg leading-none"
+                      style={{ color: `var(--${myTeam.color})` }}>
+                  {myScore}
+                </span>
+                <span className="text-foreground/40 text-sm font-bold">—</span>
+                <span className="font-display font-black text-lg leading-none text-foreground/70">
+                  {oppScore}
+                </span>
+                <span className="font-display font-bold text-sm truncate max-w-[120px]"
+                      style={{ color: `var(--${opponent.color})` }}>
+                  {opponent.name}
+                </span>
               </div>
             );
           })() : (
@@ -184,30 +193,9 @@ function LiveCard({ liveMatch, email }: { liveMatch: Match | null; email: string
           )}
         </div>
 
-        {liveMatch && (
-          <div className="flex-shrink-0">
-            {open ? <ChevronUp className="h-5 w-5 text-foreground/60" /> : <ChevronDown className="h-5 w-5 text-foreground/60" />}
-          </div>
-        )}
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && liveMatch && (
-          <motion.div
-            key="live-expand"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-5">
-              <LiveTable match={liveMatch} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        <ArrowRight className="h-5 w-5 flex-shrink-0 text-foreground/40" />
+      </div>
+    </Link>
   );
 }
 

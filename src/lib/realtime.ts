@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { supabase } from "./supabase";
 import { useApp, markRemoteSnapshotHash, type Match, type RoundEntry, type Tournament } from "./store";
 
-type Snapshot = { tournament: Tournament | null; matches: Match[]; entries: RoundEntry[] };
+type Snapshot = { tournament: Tournament | null; matches: Match[]; entries: RoundEntry[]; hangJackFlash?: Record<string, number> };
 
 function isSnapshot(v: unknown): v is Snapshot {
   return !!v && typeof v === "object" && "matches" in (v as Record<string, unknown>);

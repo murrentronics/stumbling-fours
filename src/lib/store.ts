@@ -174,7 +174,7 @@ type State = {
   clearHangJack: (tableId: string) => void;
 
   _hydrating: boolean;
-  hydrateSnapshot: (s: { tournament: Tournament | null; matches: Match[]; entries: RoundEntry[] } | null) => void;
+  hydrateSnapshot: (s: { tournament: Tournament | null; matches: Match[]; entries: RoundEntry[]; hangJackFlash?: Record<string, number> } | null) => void;
 };
 
 export const useApp = create<State>((set) => ({
@@ -206,12 +206,21 @@ export const useApp = create<State>((set) => ({
 
   _hydrating: false,
   hydrateSnapshot: (snap) =>
-    set({
+    set((s) => ({
       _hydrating: true,
       tournament: snap?.tournament ?? null,
       matches: snap?.matches ?? [],
       entries: snap?.entries ?? [],
-    }),
+      // Merge incoming hangJackFlash — only apply keys newer than what we already have
+      // so a device that already cleared its own overlay doesn't re-fire
+      hangJackFlash: snap?.hangJackFlash
+        ? Object.fromEntries(
+            Object.entries(snap.hangJackFlash).filter(
+              ([tableId, ts]) => (s.hangJackFlash[tableId] ?? 0) < (ts as number)
+            )
+          )
+        : s.hangJackFlash,
+    })),
 }));
 
 // Reset _hydrating flag immediately after apply (microtask so subscribers see it as true)
@@ -224,7 +233,12 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let lastPushed = "";
 async function pushSnapshot() {
   const s = useApp.getState();
-  const payload = { tournament: s.tournament, matches: s.matches, entries: s.entries };
+  const payload = {
+    tournament: s.tournament,
+    matches: s.matches,
+    entries: s.entries,
+    hangJackFlash: s.hangJackFlash,
+  };
   const serialized = JSON.stringify(payload);
   if (serialized === lastPushed) return;
   const { data: auth } = await supabase.auth.getUser();
@@ -245,7 +259,10 @@ function schedulePush() {
 let prev = useApp.getState();
 useApp.subscribe((s) => {
   const changed =
-    s.tournament !== prev.tournament || s.matches !== prev.matches || s.entries !== prev.entries;
+    s.tournament !== prev.tournament ||
+    s.matches !== prev.matches ||
+    s.entries !== prev.entries ||
+    s.hangJackFlash !== prev.hangJackFlash;
   prev = s;
   if (changed && !s._hydrating) schedulePush();
 });
