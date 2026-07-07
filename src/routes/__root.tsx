@@ -189,9 +189,9 @@ function StatusBlockOverlay({ status, onSignOut }: { status: string; onSignOut: 
   const Icon    = isBanned ? Ban : isSuspended ? ShieldOff : Clock;
   const title   = isBanned ? "Account Banned" : isSuspended ? "Account Suspended" : "Awaiting Approval";
   const message = isBanned
-    ? "Your account has been permanently banned. Contact the administrator if you believe this is an error."
+    ? "Your account has been permanently banned and your email has been blocklisted. You will not be able to sign up again with this email address."
     : isSuspended
-    ? "Your account has been suspended and is pending admin review. You'll be notified once access is restored."
+    ? "Your account has been suspended by an administrator. You cannot access the app until an admin reinstates your account."
     : "Your signup is awaiting admin approval. You'll be able to access the app once an admin approves your account.";
 
   return (

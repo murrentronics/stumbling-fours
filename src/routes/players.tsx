@@ -18,7 +18,7 @@ export const Route = createFileRoute("/players")({
 });
 
 type PlayerStatus = "pending" | "active" | "suspended" | "banned";
-type Tab = "pending" | "members" | "banned";
+type Tab = "pending" | "members" | "suspended" | "banned";
 
 type Player = {
   id: string;
@@ -120,7 +120,7 @@ function PlayersPage() {
   };
 
   const approve = (id: string) => setStatus(id, "active");
-  const suspend = (id: string) => setStatus(id, "pending");
+  const suspend = (id: string) => setStatus(id, "suspended");
 
   const ban = async (player: Player) => {
     if (!confirm(`Ban ${player.display_name || player.email}? Their email will be blocklisted.`)) return;
@@ -170,23 +170,26 @@ function PlayersPage() {
 
   // ── Filtered lists ─────────────────────────────────────────────────────────
   const q = search.trim().toLowerCase();
-  const pending   = players.filter((p) => p.status === "pending"   && (!q || matchQ(p, q)));
-  const members   = players.filter((p) => (p.status === "active" || p.status === "suspended") && (!q || matchQ(p, q)));
-  const banned    = players.filter((p) => p.status === "banned"    && (!q || matchQ(p, q)));
+  const pending    = players.filter((p) => p.status === "pending"    && (!q || matchQ(p, q)));
+  const members    = players.filter((p) => p.status === "active"     && (!q || matchQ(p, q)));
+  const suspended  = players.filter((p) => p.status === "suspended"  && (!q || matchQ(p, q)));
+  const banned     = players.filter((p) => p.status === "banned"     && (!q || matchQ(p, q)));
   const bannedList = bannedEmails.filter((b) => !q || b.email.toLowerCase().includes(q));
 
   const counts: Record<Tab, number> = {
-    pending: players.filter((p) => p.status === "pending").length,
-    members: players.filter((p) => p.status === "active" || p.status === "suspended").length,
-    banned:  players.filter((p) => p.status === "banned").length + bannedEmails.filter(
+    pending:   players.filter((p) => p.status === "pending").length,
+    members:   players.filter((p) => p.status === "active").length,
+    suspended: players.filter((p) => p.status === "suspended").length,
+    banned:    players.filter((p) => p.status === "banned").length + bannedEmails.filter(
       (b) => !players.some((p) => p.email === b.email)
     ).length,
   };
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "pending", label: "Pending" },
-    { id: "members", label: "Members" },
-    { id: "banned",  label: "Banned"  },
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "pending",   label: "Pending",   icon: <Clock     className="h-4 w-4 flex-shrink-0" /> },
+    { id: "members",   label: "Members",   icon: <Users     className="h-4 w-4 flex-shrink-0" /> },
+    { id: "suspended", label: "Suspended", icon: <ShieldOff className="h-4 w-4 flex-shrink-0" /> },
+    { id: "banned",    label: "Banned",    icon: <Ban       className="h-4 w-4 flex-shrink-0" /> },
   ];
 
   return (
@@ -201,12 +204,20 @@ function PlayersPage() {
         </p>
       </div>
 
-      {/* Tab strip */}
+      {/* Tab strip — icons only on mobile, icon+label on desktop */}
       <div className="flex items-center gap-1 p-1.5 rounded-full w-full"
            style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)" }}>
         {tabs.map((t) => {
           const active = tab === t.id;
           const count  = counts[t.id];
+          const badgeBg = active ? "rgba(0,0,0,0.2)"
+            : t.id === "pending"   ? "var(--gradient-crimson)"
+            : t.id === "banned"    ? "oklch(0.55 0.22 25 / 80%)"
+            : t.id === "suspended" ? "oklch(0.64 0.16 55 / 80%)"
+            : "oklch(0.83 0.16 88 / 25%)";
+          const badgeColor = active ? "black"
+            : t.id === "pending" || t.id === "banned" || t.id === "suspended" ? "white"
+            : "oklch(0.83 0.16 88)";
           return (
             <button
               key={t.id}
@@ -215,20 +226,19 @@ function PlayersPage() {
                 ${active ? "text-black" : "text-foreground/70"}`}
               style={active ? { background: "var(--gradient-gold)" } : {}}
             >
-              <span className="truncate">{t.label}</span>
+              {/* Mobile: icon only */}
+              <span className="flex sm:hidden items-center justify-center">
+                {t.icon}
+              </span>
+              {/* Desktop: icon + label */}
+              <span className="hidden sm:flex items-center gap-1.5 truncate">
+                {t.icon}
+                <span className="truncate">{t.label}</span>
+              </span>
               {count > 0 && (
                 <span
                   className="flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black leading-4 text-center"
-                  style={{
-                    background: active
-                      ? "rgba(0,0,0,0.2)"
-                      : t.id === "pending"
-                        ? "var(--gradient-crimson)"
-                        : t.id === "banned"
-                          ? "oklch(0.55 0.22 25 / 80%)"
-                          : "oklch(0.83 0.16 88 / 25%)",
-                    color: active ? "black" : t.id === "pending" || t.id === "banned" ? "white" : "oklch(0.83 0.16 88)",
-                  }}
+                  style={{ background: badgeBg, color: badgeColor }}
                 >
                   {count}
                 </span>
@@ -260,13 +270,16 @@ function PlayersPage() {
       </div>
 
       {/* Tab content */}
-      {tab === "pending" && (
+      {tab === "pending"   && (
         <PendingTab players={pending} busy={busy} onApprove={approve} onReject={reject} />
       )}
-      {tab === "members" && (
+      {tab === "members"   && (
         <MembersTab players={members} busy={busy} onSuspend={suspend} onBan={ban} onDelete={deletePlayer} />
       )}
-      {tab === "banned" && (
+      {tab === "suspended" && (
+        <SuspendedTab players={suspended} busy={busy} onActivate={approve} onBan={ban} onDelete={deletePlayer} />
+      )}
+      {tab === "banned"    && (
         <BannedTab players={banned} bannedEmails={bannedList} allProfiles={players} busy={busy} onUnban={unban} onDelete={deletePlayer} />
       )}
 
@@ -449,8 +462,7 @@ function MembersTab({
     <div className="space-y-2">
       <div className="text-xs text-foreground/50 mb-3">
         {players.filter((p) => p.status === "active").length} active
-      </div>
-      {players.map((p) => (
+      </div>      {players.map((p) => (
         <PlayerRow
           key={p.id}
           player={p}
@@ -465,6 +477,74 @@ function MembersTab({
                 onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.74 0.18 70 / 15%)")}
               >
                 Suspend
+              </button>
+              <button
+                onClick={() => onBan(p)}
+                className="flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.62 0.22 25 / 15%)", color: "oklch(0.75 0.18 25)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.62 0.22 25 / 25%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.62 0.22 25 / 15%)")}
+              >
+                Ban
+              </button>
+              <button
+                onClick={() => onDelete(p)}
+                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.55 0.22 25 / 20%)", color: "oklch(0.75 0.18 25)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.55 0.22 25 / 35%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.55 0.22 25 / 20%)")}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            </>
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Suspended tab ──────────────────────────────────────────────────────────────
+
+function SuspendedTab({
+  players, busy, onActivate, onBan, onDelete,
+}: {
+  players: Player[];
+  busy: string | null;
+  onActivate: (id: string) => void;
+  onBan: (player: Player) => void;
+  onDelete: (player: Player) => void;
+}) {
+  if (players.length === 0) {
+    return (
+      <Empty
+        icon={<ShieldOff className="h-6 w-6" />}
+        title="No suspended players"
+        body="Suspended players will appear here."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs text-foreground/50 mb-3">
+        {players.length} suspended
+      </div>
+      {players.map((p) => (
+        <PlayerRow
+          key={p.id}
+          player={p}
+          busy={busy}
+          actions={
+            <>
+              <button
+                onClick={() => onActivate(p.id)}
+                className="flex-1 py-2 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition"
+                style={{ background: "oklch(0.62 0.18 160 / 15%)", color: "oklch(0.72 0.18 160)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.62 0.18 160 / 25%)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "oklch(0.62 0.18 160 / 15%)")}
+              >
+                Reinstate
               </button>
               <button
                 onClick={() => onBan(p)}
