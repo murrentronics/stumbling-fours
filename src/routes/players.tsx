@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
@@ -43,8 +43,12 @@ function PlayersPage() {
   const [bannedEmails, setBannedEmails] = useState<BannedEmail[]>([]);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // When a write is in flight, block realtime reloads so they don't race
+  const writeLock = useRef(false);
 
   const load = useCallback(async () => {
+    // Don't reload while a write is in flight — it would race and overwrite optimistic state
+    if (writeLock.current) return;
     const [{ data: p, error: pErr }, { data: b }] = await Promise.all([
       supabase
         .from("profiles")
@@ -103,11 +107,12 @@ function PlayersPage() {
 
   const setStatus = async (id: string, status: PlayerStatus) => {
     setBusy(id);
+    writeLock.current = true;
     // Optimistic update — move the card immediately in the UI
     setPlayers((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
     const { error } = await supabase.from("profiles").update({ status }).eq("id", id);
+    writeLock.current = false;
     if (error) {
-      // Write failed — reload to restore true state
       console.error("setStatus failed:", error);
       await load();
     }
@@ -120,12 +125,14 @@ function PlayersPage() {
   const ban = async (player: Player) => {
     if (!confirm(`Ban ${player.display_name || player.email}? Their email will be blocklisted.`)) return;
     setBusy(player.id);
+    writeLock.current = true;
     // Optimistic update — move card to banned tab immediately
     setPlayers((prev) => prev.map((p) => p.id === player.id ? { ...p, status: "banned" } : p));
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
       supabase.from("banned_emails").upsert({ email: player.email, banned_by: user?.id }, { onConflict: "email" }),
       supabase.from("profiles").update({ status: "banned" }).eq("id", player.id),
     ]);
+    writeLock.current = false;
     if (e1 || e2) {
       console.error("ban failed:", e1, e2);
       await load();
@@ -136,17 +143,21 @@ function PlayersPage() {
   const reject = async (player: Player) => {
     if (!confirm(`Reject and delete ${player.display_name || player.email}?`)) return;
     setBusy(player.id);
-    // Delete auth user via service role is not available client-side,
-    // so we mark as banned and add to blocklist so they can't re-sign-up
+    writeLock.current = true;
     await supabase.from("banned_emails").upsert({ email: player.email, banned_by: user?.id, reason: "rejected signup" }, { onConflict: "email" });
     await supabase.from("profiles").update({ status: "banned" }).eq("id", player.id);
+    writeLock.current = false;
     setBusy(null);
   };
 
   const deletePlayer = async (player: Player) => {
     if (!confirm(`Permanently delete ${player.display_name || player.email}? This cannot be undone.`)) return;
     setBusy(player.id);
+    writeLock.current = true;
+    // Optimistic remove immediately
+    setPlayers((prev) => prev.filter((p) => p.id !== player.id));
     await supabase.from("profiles").delete().eq("id", player.id);
+    writeLock.current = false;
     setBusy(null);
   };
 
