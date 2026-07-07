@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useApp } from "@/lib/store";
-import { winnerIsTeamA } from "@/lib/store";
+import { useApp, pushNow, winnerIsTeamA } from "@/lib/store";
 import { LiveTable } from "@/components/LiveTable";
 import { Check, X, Clock, History, ArrowLeft, Spade, MoreVertical, Trash2, UserX, Search, ChevronDown, ChevronUp, Trophy, Radio, CalendarDays, type LucideIcon, Timer } from "lucide-react";
 
@@ -433,6 +432,7 @@ function UpcomingTab() {
           // Remove scheduled matches and clear tournament
           useApp.getState().setMatches(allMatches.filter((m) => m.status !== "scheduled"));
           setTournament(null);
+          void pushNow();
         }}
       />
     </div>
@@ -746,6 +746,7 @@ function HistoryTab() {
             onDelete={() => {
               if (!confirm(`Delete "${grp.name}" from history? This cannot be undone.`)) return;
               setMatches(allMatches.filter((m) => m.tournamentId !== grp.id));
+              void pushNow();
             }}
           />
         );

@@ -269,6 +269,12 @@ function schedulePush() {
   pushTimer = setTimeout(pushSnapshot, 200);
 }
 
+/** Immediate push — use for destructive actions (delete) to win the race against realtime echo */
+export async function pushNow() {
+  if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+  await pushSnapshot();
+}
+
 let prev = useApp.getState();
 useApp.subscribe((s) => {
   const changed =
