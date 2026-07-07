@@ -46,7 +46,7 @@ function Home() {
             </div>
           </div>
           <h1 className="font-display font-black text-5xl sm:text-7xl gold-text leading-none">
-            Deal. Score. Win.
+            Stumbling<br />Fours
           </h1>
           <p className="mt-5 max-w-2xl mx-auto text-foreground/75 text-lg">
             Run live tables, capture every High, Low, Jack & Game, and crown your champion —
@@ -71,7 +71,7 @@ function Home() {
 
       {/* rules summary */}
       <section className="mt-10 ornate-border p-6 sm:p-8">
-        <h2 className="font-display font-black text-2xl gold-text mb-4">The Stumbling Fours Scorecard</h2>
+        <h2 className="font-display font-black text-2xl gold-text mb-4">Game Scorecard</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <RuleChip label="High" value="+1" />
           <RuleChip label="Low" value="+1" />

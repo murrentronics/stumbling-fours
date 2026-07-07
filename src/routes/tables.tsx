@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp, pushNow, winnerIsTeamA } from "@/lib/store";
+import { generateTournamentPdf, downloadPdf } from "@/lib/pdf";
 import { LiveTable } from "@/components/LiveTable";
-import { Check, X, Clock, History, ArrowLeft, Spade, MoreVertical, Trash2, UserX, Search, ChevronDown, ChevronUp, Trophy, Radio, CalendarDays, type LucideIcon, Timer } from "lucide-react";
+import { Check, X, Clock, History, ArrowLeft, Spade, MoreVertical, Trash2, UserX, Search, ChevronDown, ChevronUp, Trophy, Radio, CalendarDays, type LucideIcon, Timer, FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/tables")({
   head: () => ({
@@ -724,6 +725,21 @@ function HistoryTab() {
 
   return (
     <div className="space-y-4">
+      {/* Download All button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            const groups = sortedGroups.map((g) => ({ id: g.id, name: g.name, matches: g.matches }));
+            const bytes = generateTournamentPdf(groups, allEntries);
+            downloadPdf(bytes, `stumbling-fours-all-tournaments.pdf`);
+          }}
+          className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition"
+          style={{ background: "oklch(0.20 0.06 150)", border: "1px solid oklch(0.83 0.16 88 / 30%)", color: "oklch(0.83 0.16 88)" }}
+        >
+          <FileDown className="h-4 w-4" /> Download All
+        </button>
+      </div>
+
       {sortedGroups.map((grp) => {
         const timestamps = grp.matches.map((m) => m.startedAt);
         const minTs = Math.min(...timestamps);
@@ -748,6 +764,13 @@ function HistoryTab() {
               setMatches(allMatches.filter((m) => m.tournamentId !== grp.id));
               void pushNow();
             }}
+            onDownload={() => {
+              const bytes = generateTournamentPdf(
+                [{ id: grp.id, name: grp.name, matches: sorted }],
+                allEntries
+              );
+              downloadPdf(bytes, `${grp.name.toLowerCase().replace(/\s+/g, "-")}.pdf`);
+            }}
           />
         );
       })}
@@ -759,7 +782,7 @@ type MatchEntry = import("@/lib/store").RoundEntry;
 type MatchItem = import("@/lib/store").Match;
 
 function TournamentAccordion({
-  name, dateRange, matches, maxRound, allEntries, onDelete,
+  name, dateRange, matches, maxRound, allEntries, onDelete, onDownload,
 }: {
   name: string;
   dateRange: string;
@@ -767,6 +790,7 @@ function TournamentAccordion({
   maxRound: number;
   allEntries: MatchEntry[];
   onDelete?: () => void;
+  onDownload?: () => void;
 }) {
   const role = useApp((s) => s.role);
   const [open, setOpen] = useState(true);
@@ -794,15 +818,26 @@ function TournamentAccordion({
             {open ? <ChevronUp className="h-4 w-4 text-foreground/50" /> : <ChevronDown className="h-4 w-4 text-foreground/50" />}
           </div>
         </button>
-        {role === "admin" && onDelete && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="flex-shrink-0 p-2 rounded-md transition hover:bg-red-500/20"
-            title="Delete tournament from history"
-          >
-            <Trash2 className="h-4 w-4 text-red-400" />
-          </button>
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {onDownload && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDownload(); }}
+              className="p-2 rounded-md transition hover:bg-white/10"
+              title="Download PDF"
+            >
+              <FileDown className="h-4 w-4 text-foreground/60 hover:text-foreground" />
+            </button>
+          )}
+          {role === "admin" && onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="p-2 rounded-md transition hover:bg-red-500/20"
+              title="Delete tournament from history"
+            >
+              <Trash2 className="h-4 w-4 text-red-400" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Match list */}
