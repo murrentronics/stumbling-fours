@@ -45,7 +45,7 @@ function Home() {
               <span className="font-marquee tracking-[0.4em] text-xs text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">FOURS</span>
             </div>
           </div>
-          <h1 className="font-display font-black text-5xl sm:text-7xl gold-text leading-none">
+          <h1 className="font-display font-black text-4xl sm:text-7xl gold-text leading-tight">
             Stumbling<br />Fours
           </h1>
           <p className="mt-5 max-w-2xl mx-auto text-foreground/75 text-lg">

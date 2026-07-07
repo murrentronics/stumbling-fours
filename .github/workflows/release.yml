@@ -127,7 +127,14 @@ jobs:
 
             Download the APK below and install on your Android device.
 
-            > Enable "Install from unknown sources" in Android settings if prompted.
+            ### Installation steps
+            1. Tap the APK file to download
+            2. Open the file to install
+            3. If Google Play Protect shows a warning — tap **More details** → **Install anyway**
+               This appears because the app is not on the Play Store. It is safe to install.
+            4. If prompted, enable "Install from unknown sources" in Android settings
+
+            > This is a private app — the Play Protect warning is normal for sideloaded apps.
           files: android/app/build/outputs/apk/release/stumbling-fours.apk
           make_latest: true
           prerelease: false
