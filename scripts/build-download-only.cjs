@@ -17,6 +17,13 @@ if (!fs.existsSync(downloadSrc)) {
 fs.copyFileSync(downloadSrc, path.join(distDir, 'index.html'));
 console.log('✔  Copied download.html → dist/client/index.html');
 
+// Copy version.json so /version.json is served on Cloudflare Pages
+const versionSrc = path.join(__dirname, '..', 'public', 'version.json');
+if (fs.existsSync(versionSrc)) {
+  fs.copyFileSync(versionSrc, path.join(distDir, 'version.json'));
+  console.log('✔  Copied version.json → dist/client/version.json');
+}
+
 // Copy src/assets (logo etc) → dist/client/assets
 if (fs.existsSync(assetsSrc)) {
   if (!fs.existsSync(assetsDest)) fs.mkdirSync(assetsDest, { recursive: true });

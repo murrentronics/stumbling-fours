@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
@@ -44,8 +44,8 @@ function PlayersPage() {
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = async () => {
-    const [{ data: p }, { data: b }] = await Promise.all([
+  const load = useCallback(async () => {
+    const [{ data: p, error: pErr }, { data: b }] = await Promise.all([
       supabase
         .from("profiles")
         .select("id,email,display_name,avatar_url,status,created_at")
@@ -56,16 +56,33 @@ function PlayersPage() {
         .order("banned_at", { ascending: false }),
     ]);
 
-    setPlayers(
-      ((p as Player[]) ?? [])
-        .filter((pl) => pl.id !== user?.id)
-        .map((pl) => ({
-          ...pl,
-          status: (pl.status ?? "active") as PlayerStatus,
-        }))
-    );
+    if (pErr) {
+      // Status column may not exist yet — fall back to fetching without it
+      const { data: p2 } = await supabase
+        .from("profiles")
+        .select("id,email,display_name,avatar_url,created_at")
+        .order("created_at", { ascending: false });
+      const { data: statusRows } = await supabase.from("profiles").select("id,status");
+      const statusMap = new Map<string, string>(
+        (statusRows ?? []).map((r: { id: string; status: string | null }) => [r.id, r.status ?? "active"])
+      );
+      setPlayers(
+        ((p2 as Omit<Player, "status">[]) ?? [])
+          .filter((pl) => pl.id !== user?.id)
+          .map((pl) => ({ ...pl, status: (statusMap.get(pl.id) ?? "active") as PlayerStatus }))
+      );
+    } else {
+      setPlayers(
+        ((p as Player[]) ?? [])
+          .filter((pl) => pl.id !== user?.id)
+          .map((pl) => ({
+            ...pl,
+            status: (pl.status ?? "active") as PlayerStatus,
+          }))
+      );
+    }
     setBannedEmails((b as BannedEmail[]) ?? []);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -76,8 +93,7 @@ function PlayersPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "banned_emails" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+  }, [isAdmin, load]);
 
   // Guards — after all hooks
   if (loading) return null;

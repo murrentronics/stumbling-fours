@@ -7,10 +7,8 @@ android {
         applicationId "com.stumblingfours.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // versionCode comes from CI (BUILD_NUMBER env var) so every release APK
-        // has a strictly-increasing code. Falls back to 1 for local builds.
-        versionCode (System.getenv("BUILD_NUMBER")?.toInteger() ?: 1)
-        versionName System.getenv("VERSION_NAME") ?: "1.0"
+        versionCode 49
+        versionName "1.0.49"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
