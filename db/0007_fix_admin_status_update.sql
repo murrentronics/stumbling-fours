@@ -7,6 +7,23 @@
 alter table public.profiles
   add column if not exists status text not null default 'pending';
 
+-- ---------- 2. Enable REPLICA IDENTITY FULL so realtime row filters --
+-- work correctly (needed for filter: id=eq.xxx in Supabase realtime)
+alter table public.profiles replica identity full;
+
+-- ---------- 3. Ensure profiles is in the realtime publication --------
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and tablename = 'profiles'
+  ) then
+    alter publication supabase_realtime add table public.profiles;
+  end if;
+end;
+$$;
+
 -- ---------- 2. Drop old check constraint (any name it might have) ----
 do $$
 declare

@@ -64,19 +64,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // ── Realtime: re-fetch profile if admin changes this user's status ──────────
+  // ── Realtime + poll: re-fetch profile when admin changes this user's status ─
   useEffect(() => {
     if (!session?.user.id) return;
     const uid = session.user.id;
+
+    // Listen to ALL profile updates — no row filter (avoids REPLICA IDENTITY requirement)
+    // Check in the callback if it's the current user's row
     const ch = supabase
       .channel(`profile_status_${uid}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${uid}` },
-        () => { void loadExtras(uid); }
+        { event: "UPDATE", schema: "public", table: "profiles" },
+        (payload) => {
+          const row = payload.new as { id?: string } | null;
+          if (row?.id === uid) void loadExtras(uid);
+        }
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+
+    // Poll every 8 seconds as a guaranteed fallback in case realtime misses the event
+    const poll = setInterval(() => void loadExtras(uid), 8000);
+
+    return () => {
+      supabase.removeChannel(ch);
+      clearInterval(poll);
+    };
   }, [session?.user.id]);
 
   const refresh = async () => loadExtras(session?.user.id ?? null);
